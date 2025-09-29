@@ -1,23 +1,16 @@
-# Exported from Render on 2025-09-29T07:11:55Z
-version: "1"
-projects:
-- name: SUSNATACODES
-  environments:
-  - name: Production
-    services:
-    - type: web
-      name: SUSNATA-WEATHER-APP
-      runtime: node
-      repo: https://github.com/SUSNATACODES/SUSNATA-WEATHER-APP
-      plan: free
-      envVars:
+services:
+  - type: web
+    name: susnata-weather-app
+    env: node
+    plan: free
+    region: oregon
+    rootDir: WeatherServer
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
       - key: API_KEY
         sync: false
-      region: oregon
-      buildCommand: npm install
-      startCommand: npm start
-      domains:
+    autoDeploy: true
+    domains:
       - susnatacode.com
       - www.susnatacode.blogspot.com
-      autoDeployTrigger: commit
-      rootDir: WeatherServer
