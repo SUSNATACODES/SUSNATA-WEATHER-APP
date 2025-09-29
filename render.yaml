@@ -8,7 +8,7 @@ projects:
     - type: web
       name: SUSNATA-WEATHER-APP
       runtime: node
-      repo: https://github.com/NOCTURNAL-DEVELOPER/SUSNATA-WEATHER-APP
+      repo: https://github.com/SUSNATACODES/SUSNATA-WEATHER-APP
       plan: free
       envVars:
       - key: API_KEY
@@ -18,6 +18,6 @@ projects:
       startCommand: npm start
       domains:
       - susnatacode.com
-      - www.susnatacode.com
+      - www.susnatacode.blogspot.com
       autoDeployTrigger: commit
       rootDir: WeatherServer
