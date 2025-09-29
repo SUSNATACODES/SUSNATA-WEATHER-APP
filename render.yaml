@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: susnata-weather
+    env: node
+    rootDir: WeatherServer
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    plan: free
+    envVars:
+      - key: API_KEY
+        sync: false
