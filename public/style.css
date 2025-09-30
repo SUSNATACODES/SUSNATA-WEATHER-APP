@@ -1,3 +1,73 @@
+/* ========================= */
+/* ADMIN INFO PANEL */
+/* ========================= */
+#adminPanel {
+    position: fixed;
+    right: 20px;
+    top: 120px;
+    width: 220px;
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    gap: 15px;
+    z-index: 15;
+    transition: all 0.5s ease;
+}
+
+#adminPanel button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+/* Admin panel button colors */
+#adminPanel button.emailBtn {
+    background: linear-gradient(45deg, #6a11cb 0%, #2575fc 100%);
+}
+#adminPanel button.instagramBtn {
+    background: linear-gradient(45deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+}
+#adminPanel button.githubBtn {
+    background: linear-gradient(45deg, #333333 0%, #6e5494 100%);
+}
+#adminPanel button.weatherGameBtn {
+    background: linear-gradient(45deg, #ff7e5f, #feb47b);
+}
+
+#adminPanel button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* Responsive Admin Panel */
+@media (max-width: 700px) {
+    #adminPanel {
+        right: 10px;
+        top: 100px;
+        width: 180px;
+        padding: 15px;
+    }
+    #adminPanel button {
+        font-size: 14px;
+        padding: 10px;
+    }
+}
+
+/* ========================= */
+/* REST OF YOUR ORIGINAL CSS */
+/* ========================= */
 * {
     margin: 0;
     padding: 0;
@@ -61,7 +131,7 @@ body {
     transform: translateY(-2px);
 }
 
-/* ✅ Responsive Navbar */
+/* Responsive Navbar */
 @media (max-width: 600px) {
     .navbar {
         flex-direction: column;
@@ -286,109 +356,4 @@ footer {
     font-size: 14px;
     color: #fff;
     text-shadow: 1px 1px 5px rgba(0,0,0,0.3);
-}
-
-/* SOCIAL BUTTONS */
-#instagramBtn, #whatsappBtn {
-    position: fixed;
-    left: 20px;
-    width: 50px;
-    height: 50px;
-    border-radius: 12px;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #fff;
-    font-weight: bold;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: all 0.5s ease;
-    z-index: 10;
-}
-
-#instagramBtn { top: 160px; background: linear-gradient(45deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%); }
-#whatsappBtn { top: 230px; background: linear-gradient(45deg, #25D366 0%, #128C7E 100%); }
-
-#instagramBtn.show, #whatsappBtn.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-#instagramBtn:hover, #whatsappBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-}
-
-/* CLOUD GAME POPUP */
-.popup {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.6);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-}
-
-.popup-content {
-    background: #fff;
-    padding: 40px 30px;
-    border-radius: 20px;
-    text-align: center;
-    animation: popupFade 0.5s ease;
-}
-
-.popup-content .emoji {
-    font-size: 60px;
-    animation: bounce 1s infinite alternate;
-    margin-bottom: 20px;
-}
-
-.popup-content h2 {
-    font-size: 28px;
-    margin-bottom: 10px;
-    color: #333;
-}
-
-.popup-content p {
-    font-size: 18px;
-    margin-bottom: 20px;
-    color: #555;
-}
-
-.popup-content button {
-    padding: 10px 20px;
-    font-size: 16px;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    background: linear-gradient(45deg, #6a11cb 0%, #2575fc 100%);
-    color: #fff;
-    font-weight: bold;
-}
-
-/* ANIMATIONS */
-@keyframes bounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(-20px); }
-}
-
-@keyframes popupFade {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-/* RESPONSIVE */
-@media (max-width: 700px) {
-    .search-box {
-        flex-direction: column;
-        gap: 10px;
-    }
-    .weather-game-btn {
-        margin-top: 10px;
-    }
 }
