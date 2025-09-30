@@ -1,4 +1,4 @@
-// ========================= 
+// =========================
 // VARIABLES
 // =========================
 const searchBtn = document.getElementById('searchBtn');
@@ -14,37 +14,25 @@ const weatherIconElem = document.getElementById('weatherIcon');
 const loadingElem = document.getElementById('loading');
 const subtitleElem = document.getElementById('subtitle');
 
-const homeBtn = document.querySelector('.btn-nav[href="/"]'); // Navbar Home
+const homeBtn = document.querySelector('.btn-nav[href="/"]');
 const cloudGameBtn = document.getElementById('weatherGameBtn');
 const cloudPopup = document.getElementById('cloudPopup');
 const closePopupBtn = document.getElementById('closePopup');
-const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 
-// =========================
-// ADMIN INFO PANEL VARIABLES
-// =========================
-const adminBtn = document.getElementById('adminBtn'); // Navbar Admin Info button
+const adminBtn = document.getElementById('adminBtn');
 const adminPanel = document.getElementById('adminPanel');
 const instagramBtn = document.querySelector('.instagramBtn');
 const githubBtn = document.querySelector('.githubBtn');
 
 let searchCount = 0;
+let locationDetected = false;
 
 // =========================
 // UTILITY FUNCTIONS
 // =========================
-function showLoading() {
-    loadingElem.style.display = 'flex';
-    weatherInfo.style.display = 'none';
-}
+const showLoading = () => { loadingElem.style.display = 'flex'; weatherInfo.style.display = 'none'; };
+const hideLoading = () => { loadingElem.style.display = 'none'; };
 
-function hideLoading() {
-    loadingElem.style.display = 'none';
-}
-
-// =========================
-// UPDATE WEATHER CARD
-// =========================
 function updateWeather(data) {
     cityNameElem.textContent = data.name || 'Unknown City';
     temperatureElem.textContent = (data.main.temp - 273.15).toFixed(1) + ' °C';
@@ -64,12 +52,9 @@ function updateWeather(data) {
 
     subtitleElem.textContent = `Live weather updates for ${data.name}`;
 
-    if (cloudGameBtn) cloudGameBtn.classList.add('show');
+    if (cloudGameBtn) cloudGameBtn.style.display = (searchCount >= 5) ? 'inline-block' : 'none';
 }
 
-// =========================
-// FETCH WEATHER
-// =========================
 async function getWeather(city) {
     showLoading();
     try {
@@ -79,14 +64,7 @@ async function getWeather(city) {
         updateWeather(data);
 
         if (city.toLowerCase() !== 'kolkata') searchCount++;
-
-        if (searchCount >= 5 && cloudGameBtn) {
-            cloudGameBtn.style.display = 'inline-block';
-        } else if (cloudGameBtn) {
-            cloudGameBtn.style.display = 'none';
-        }
     } catch (err) {
-        alert('Failed to fetch weather. Try again!');
         console.error(err);
         weatherInfo.style.display = 'none';
         if (cloudGameBtn) cloudGameBtn.style.display = 'none';
@@ -96,10 +74,8 @@ async function getWeather(city) {
 }
 
 // =========================
-// AUTO-DETECT MAIN CITY WEATHER ONCE
+// AUTO DETECT MAIN CITY WEATHER ONCE
 // =========================
-let locationDetected = false;
-
 async function detectMainCityWeatherOnce() {
     if (locationDetected) return;
     locationDetected = true;
@@ -110,58 +86,18 @@ async function detectMainCityWeatherOnce() {
             const lon = position.coords.longitude;
             try {
                 const res = await fetch(`/weather?city=${lat},${lon}`);
-                if (!res.ok) throw new Error('Network response was not ok');
                 const data = await res.json();
-
-                if (data && data.name) {
-                    updateWeather(data);
-                } else {
-                    getWeather('Kolkata');
-                }
-            } catch (err) {
-                console.error('Location detection failed', err);
+                if (data.name) updateWeather(data);
+                else getWeather('Kolkata');
+            } catch {
                 getWeather('Kolkata');
             }
-        }, () => {
-            getWeather('Kolkata');
-        });
-    } else {
-        getWeather('Kolkata');
-    }
+        }, () => getWeather('Kolkata'));
+    } else getWeather('Kolkata');
 }
 
 // =========================
-// MANUAL AUTO WEATHER BUTTON
-// =========================
-if (autoWeatherBtn) {
-    autoWeatherBtn.addEventListener('click', () => {
-        if (navigator.geolocation) {
-            showLoading();
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                try {
-                    const res = await fetch(`/weather?city=${lat},${lon}`);
-                    if (!res.ok) throw new Error('Network response was not ok');
-                    const data = await res.json();
-                    updateWeather(data);
-                } catch (err) {
-                    alert('Failed to fetch weather for your location.');
-                    console.error(err);
-                } finally {
-                    hideLoading();
-                }
-            }, () => {
-                alert('Permission denied. Please allow location access.');
-            });
-        } else {
-            alert('Geolocation is not supported by this browser.');
-        }
-    });
-}
-
-// =========================
-// EVENT LISTENERS
+// SEARCH WEATHER
 // =========================
 searchBtn.addEventListener('click', () => {
     const city = cityInput.value.trim();
@@ -180,49 +116,32 @@ cityInput.addEventListener('keypress', (e) => {
 // =========================
 if (cloudGameBtn) {
     cloudGameBtn.addEventListener('click', () => {
-        if (cloudPopup) {
-            cloudPopup.style.display = 'flex';
-            const emoji = cloudPopup.querySelector('.emoji');
-            emoji.style.animation = 'bounce 1s infinite';
-        }
+        cloudPopup.style.display = 'flex';
+        cloudPopup.querySelector('.emoji').style.animation = 'bounce 1s infinite';
     });
 }
-
-if (closePopupBtn) {
-    closePopupBtn.addEventListener('click', () => {
-        if (cloudPopup) cloudPopup.style.display = 'none';
-    });
-}
+if (closePopupBtn) closePopupBtn.addEventListener('click', () => cloudPopup.style.display = 'none');
 
 // =========================
-// AUTO CLOSE ADMIN PANEL AFTER 5 SEC OR CLICK OUTSIDE
+// ADMIN PANEL
 // =========================
 if (adminBtn) {
     adminBtn.addEventListener('click', () => {
-        if (adminPanel.style.display === 'flex') {
+        adminPanel.style.display = 'flex';
+        instagramBtn.style.display = 'flex';
+        githubBtn.style.display = 'flex';
+        if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
+        adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        setTimeout(() => {
             adminPanel.style.display = 'none';
             instagramBtn.style.display = 'none';
             githubBtn.style.display = 'none';
             if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-        } else {
-            adminPanel.style.display = 'flex';
-            instagramBtn.style.display = 'flex';
-            githubBtn.style.display = 'flex';
-            if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
-            adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-            // Auto close after 5 seconds
-            setTimeout(() => {
-                adminPanel.style.display = 'none';
-                instagramBtn.style.display = 'none';
-                githubBtn.style.display = 'none';
-                if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-            }, 5000);
-        }
+        }, 5000);
     });
 
-    // Close if clicked outside panel
-    document.addEventListener('click', (e) => {
+    window.addEventListener('click', (e) => {
         if (!adminPanel.contains(e.target) && !adminBtn.contains(e.target)) {
             adminPanel.style.display = 'none';
             instagramBtn.style.display = 'none';
@@ -233,7 +152,7 @@ if (adminBtn) {
 }
 
 // =========================
-// NAVBAR HOME BUTTON
+// HOME BUTTON
 // =========================
 if (homeBtn) {
     homeBtn.addEventListener('click', () => {
