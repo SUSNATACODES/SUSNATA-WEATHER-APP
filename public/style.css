@@ -1,5 +1,5 @@
 /* ========================= */
-/* ADMIN INFO PANEL */
+/* ADMIN INFO PANEL FIXED */
 /* ========================= */
 #adminPanel {
     position: fixed;
@@ -10,17 +10,17 @@
     border-radius: 20px;
     padding: 20px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    display: none; /* Hidden by default */
-    flex-direction: column;
+    display: none; /* hidden by default */
+    flex-direction: column; /* vertical layout */
     gap: 15px;
-    z-index: 15;
+    z-index: 1000; /* higher to appear above other content */
     transition: all 0.5s ease;
 }
 
 #adminPanel button {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center; /* center text/icons */
     gap: 10px;
     padding: 12px;
     font-size: 16px;
@@ -51,17 +51,76 @@
     box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
-/* Responsive Admin Panel */
+/* ========================= */
+/* CLOUD POPUP FIXED */
+/* ========================= */
+#cloudPopup {
+    display: none; /* hidden by default */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    max-width: 90%;
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    text-align: center;
+    z-index: 2000;
+}
+
+#cloudPopup .emoji {
+    font-size: 50px;
+    margin-bottom: 15px;
+}
+
+#cloudPopup h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+#cloudPopup p {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+#cloudPopup button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    background: linear-gradient(45deg, #6a11cb 0%, #2575fc 100%);
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+#cloudPopup button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* Responsive Admin Panel & Cloud Popup */
 @media (max-width: 700px) {
     #adminPanel {
         right: 10px;
-        top: 100px;
+        top: 80px;
         width: 180px;
         padding: 15px;
     }
     #adminPanel button {
         font-size: 14px;
         padding: 10px;
+    }
+
+    #cloudPopup {
+        width: 90%;
+        padding: 20px;
+    }
+
+    #cloudPopup .emoji {
+        font-size: 40px;
     }
 }
 

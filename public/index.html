@@ -16,7 +16,7 @@
   <ul>
     <li><a href="/" class="btn-nav">Home</a></li>
     <li><a href="https://susnatacodes.blogspot.com" target="_blank" class="btn-nav">Website</a></li>
-    <li><button id="adminInfoBtn" class="btn-nav">Admin Aura</button></li>
+    <li><button id="adminBtn" class="btn-nav">Admin Info</button></li>
   </ul>
 </nav>
 
@@ -33,24 +33,23 @@
 <div class="search-box animate__animated animate__fadeIn">
   <input type="text" id="cityInput" placeholder="Enter city name...">
   <button id="searchBtn" class="search-btn">Get Weather</button>
-  <button id="weatherGameBtn" class="weather-game-btn" style="display:none;">Play Weather Game</button>
   <button id="autoWeatherBtn" class="search-btn">📍 Detect My Weather</button>
 </div>
 
-<!-- Hidden Admin Buttons -->
-<div id="adminButtons" style="display:none; flex-wrap: wrap; gap: 10px; margin-top:10px;">
-  <button id="instagramBtn" class="btn-nav" onclick="window.open('https://instagram.com/capture_withsusnata','_blank')">Instagram</button>
-  <button id="githubBtn" class="btn-nav" onclick="window.open('https://github.com/susnatacodes','_blank')">GitHub</button>
+<!-- Admin Panel -->
+<div id="adminPanel">
+  <button class="emailBtn" onclick="window.open('mailto:sbmrbiswas@gmail.com')">Email</button>
+  <button class="instagramBtn" onclick="window.open('https://instagram.com/capture_withsusnata','_blank')">Instagram</button>
+  <button class="githubBtn" onclick="window.open('https://github.com/susnatacodes','_blank')">GitHub</button>
+  <button class="weatherGameBtn" id="weatherGameBtn">Play Weather Game</button>
 </div>
 
 <!-- Cloud Game Popup -->
-<div id="cloudPopup" class="popup">
-  <div class="popup-content">
-    <div class="emoji">😊</div>
-    <h2>Coming Soon!</h2>
-    <p>Thanks for your interest.</p>
-    <button id="closePopup">Close</button>
-  </div>
+<div id="cloudPopup">
+  <div class="emoji">😊</div>
+  <h2>Coming Soon!</h2>
+  <p>Thanks for your interest.</p>
+  <button id="closePopup">Close</button>
 </div>
 
 <!-- Loading Spinner -->
@@ -93,33 +92,9 @@
 <!-- Footer -->
 <footer>
   <p>&copy; 2025 Susnata Biswas Reserve. All rights reserved.</p>
-  <p>ORGANIZED BY SUSNATA CODES</p>
+  <p>Developed by Susnata Biswas</p>
 </footer>
 
 <script src="script.js"></script>
-<script>
-  // Admin Info toggles buttons & Weather Game
-  const adminBtn = document.getElementById('adminInfoBtn');
-  const adminButtons = document.getElementById('adminButtons');
-  const weatherGameBtn = document.getElementById('weatherGameBtn');
-
-  adminBtn.addEventListener('click', () => {
-      const isVisible = adminButtons.style.display === 'flex';
-      adminButtons.style.display = isVisible ? 'none' : 'flex';
-      weatherGameBtn.style.display = isVisible ? 'none' : 'inline-block';
-  });
-
-  // Cloud popup
-  const closePopupBtn = document.getElementById('closePopup');
-  const cloudPopup = document.getElementById('cloudPopup');
-
-  closePopupBtn.addEventListener('click', () => {
-      cloudPopup.style.display = 'none';
-  });
-
-  weatherGameBtn.addEventListener('click', () => {
-      cloudPopup.style.display = 'flex';
-  });
-</script>
 </body>
 </html>
