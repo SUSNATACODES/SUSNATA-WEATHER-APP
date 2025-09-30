@@ -1,4 +1,4 @@
-// =========================
+// ========================= 
 // VARIABLES
 // =========================
 const searchBtn = document.getElementById('searchBtn');
@@ -14,14 +14,15 @@ const weatherIconElem = document.getElementById('weatherIcon');
 const loadingElem = document.getElementById('loading');
 const subtitleElem = document.getElementById('subtitle');
 
-const homeBtn = document.getElementById('homeBtn');
+const homeBtn = document.querySelector('.btn-nav[href="/"]'); // Updated for navbar
 const instagramBtn = document.getElementById('instagramBtn');
 const whatsappBtn = document.getElementById('whatsappBtn');
-const feedbackBtn = document.getElementById('feedbackBtn');
 
 const cloudGameBtn = document.getElementById('weatherGameBtn');
 const cloudPopup = document.getElementById('cloudPopup');
 const closePopupBtn = document.getElementById('closePopup');
+
+const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 
 let socialVisible = false;
 let searchCount = 0;
@@ -60,7 +61,6 @@ function updateWeather(data) {
 
     subtitleElem.textContent = `Live weather updates for ${data.name}`;
 
-    // Show Weather Game button in same row after successful weather fetch
     if (cloudGameBtn) cloudGameBtn.classList.add('show');
 }
 
@@ -75,12 +75,8 @@ async function getWeather(city) {
         const data = await res.json();
         updateWeather(data);
 
-        // Only increment for user searches (not initial load)
-        if (city.toLowerCase() !== 'kolkata') {
-            searchCount++;
-        }
+        if (city.toLowerCase() !== 'kolkata') searchCount++;
 
-        // Show the button after 5 successful searches
         if (searchCount >= 5) {
             cloudGameBtn.style.display = 'inline-block';
         } else {
@@ -94,6 +90,36 @@ async function getWeather(city) {
     } finally {
         hideLoading();
     }
+}
+
+// =========================
+// AUTO-DETECT WEATHER
+// =========================
+if (autoWeatherBtn) {
+    autoWeatherBtn.addEventListener('click', () => {
+        if (navigator.geolocation) {
+            showLoading();
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                try {
+                    const res = await fetch(`/weather?city=${lat},${lon}`);
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    const data = await res.json();
+                    updateWeather(data);
+                } catch (err) {
+                    alert('Failed to fetch weather for your location.');
+                    console.error(err);
+                } finally {
+                    hideLoading();
+                }
+            }, () => {
+                alert('Permission denied. Please allow location access.');
+            });
+        } else {
+            alert('Geolocation is not supported by this browser.');
+        }
+    });
 }
 
 // =========================
@@ -113,52 +139,8 @@ cityInput.addEventListener('keypress', (e) => {
 
 window.addEventListener('load', () => {
     getWeather('Kolkata');
-    cloudGameBtn.style.display = 'none'; // Hide on initial load
+    if (cloudGameBtn) cloudGameBtn.style.display = 'none';
 });
-
-if (homeBtn) {
-    homeBtn.addEventListener('click', () => {
-        cityInput.value = '';
-        weatherInfo.style.display = 'none';
-        subtitleElem.textContent = 'Welcome to Oxygen Weather';
-
-        // Hide Weather Game button on home
-        if (cloudGameBtn) cloudGameBtn.classList.remove('show');
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-}
-
-// =========================
-// FEEDBACK BUTTON
-// =========================
-if (feedbackBtn) {
-    feedbackBtn.addEventListener('click', () => {
-        socialVisible = !socialVisible;
-        if (socialVisible) {
-            instagramBtn.classList.add('show');
-            whatsappBtn.classList.add('show');
-        } else {
-            instagramBtn.classList.remove('show');
-            whatsappBtn.classList.remove('show');
-        }
-    });
-}
-
-// =========================
-// SOCIAL BUTTONS
-// =========================
-if (whatsappBtn) {
-    whatsappBtn.addEventListener('click', () => {
-        window.open('https://wa.me/918392045833', '_blank');
-    });
-}
-
-if (instagramBtn) {
-    instagramBtn.addEventListener('click', () => {
-        window.open('https://instagram.com/capture_withsusnata', '_blank');
-    });
-}
 
 // =========================
 // CLOUD GAME POPUP

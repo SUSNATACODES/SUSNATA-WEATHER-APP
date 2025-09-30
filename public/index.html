@@ -9,17 +9,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- LEFT PANEL -->
-<div id="leftPanel" class="left-panel">
-  <button id="homeBtn">🏠 Home</button>
-  <button id="feedbackBtn">✍️ Feedback</button>
 
-  <!-- Social Buttons (hidden initially) -->
-  <div id="socialButtons" class="social-hidden">
-    <button id="whatsappBtn">💬 WhatsApp</button>
-    <button id="instagramBtn">📸 Instagram</button>
-  </div>
-</div>
+<!-- ✅ New Navigation Bar -->
+<nav class="navbar">
+  <a href="/" class="logo">🌦️ OXYGEN WEATHER</a>
+  <ul>
+    <li><a href="/" class="btn-nav">Home</a></li>
+    <li><a href="https://susnatacode.blogspot.com" target="_blank" class="btn-nav">My Blog</a></li>
+    <li><a href="mailto:sbmrbiswas@gmail.com" class="btn-nav">Contact</a></li>
+  </ul>
+</nav>
 
 <!-- Watermark -->
 <div class="watermark">© 2025 Susnata Biswas Reserve</div>
@@ -30,11 +29,12 @@
     <p id="subtitle" class="animate__animated animate__fadeInUp">Live professional weather updates</p>
 </header>
 
-<!-- Search Box + Weather Game Button in the same row -->
+<!-- Search Box + Weather Game Button + Auto Weather -->
 <div class="search-box animate__animated animate__fadeIn">
     <input type="text" id="cityInput" placeholder="Enter city name...">
     <button id="searchBtn" class="search-btn">Get Weather</button>
     <button id="weatherGameBtn" class="weather-game-btn" style="display:none;">Play Weather Game</button>
+    <button id="autoWeatherBtn" class="search-btn">📍 Detect My Weather</button>
 </div>
 
 <!-- Cloud Game Popup -->

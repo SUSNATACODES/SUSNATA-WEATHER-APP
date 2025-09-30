@@ -12,16 +12,28 @@ app.use(express.static(path.join(__dirname, '../public'))); // serve frontend fi
 
 // Weather API endpoint
 app.get('/weather', async (req, res) => {
-    const city = req.query.city;
-    if (!city) return res.status(400).json({ error: 'City is required' });
+    const { city, lat, lon } = req.query;
+
+    if (!city && (!lat || !lon)) {
+        return res.status(400).json({ error: 'City or latitude/longitude is required' });
+    }
 
     try {
         const apiKey = process.env.API_KEY;
-        const response = await axios.get(
-            `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`
-        );
+        let url;
+
+        if (city) {
+            // Search by city name
+            url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        } else {
+            // Search by coordinates
+            url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+        }
+
+        const response = await axios.get(url);
         res.json(response.data);
     } catch (error) {
+        console.error(error.message);
         res.status(500).json({ error: 'Failed to fetch weather' });
     }
 });
