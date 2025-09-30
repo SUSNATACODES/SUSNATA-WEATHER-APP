@@ -25,8 +25,8 @@ const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 // =========================
 const adminBtn = document.getElementById('adminBtn'); // Navbar Admin Info button
 const adminPanel = document.getElementById('adminPanel');
-const instagramBtn = document.getElementById('instagramBtn');
-const githubBtn = document.getElementById('githubBtn');
+const instagramBtn = document.querySelector('.instagramBtn');
+const githubBtn = document.querySelector('.githubBtn');
 
 let searchCount = 0;
 
@@ -80,23 +80,58 @@ async function getWeather(city) {
 
         if (city.toLowerCase() !== 'kolkata') searchCount++;
 
-        if (searchCount >= 5) {
+        if (searchCount >= 5 && cloudGameBtn) {
             cloudGameBtn.style.display = 'inline-block';
-        } else {
+        } else if (cloudGameBtn) {
             cloudGameBtn.style.display = 'none';
         }
     } catch (err) {
         alert('Failed to fetch weather. Try again!');
         console.error(err);
         weatherInfo.style.display = 'none';
-        cloudGameBtn.style.display = 'none';
+        if (cloudGameBtn) cloudGameBtn.style.display = 'none';
     } finally {
         hideLoading();
     }
 }
 
 // =========================
-// AUTO-DETECT WEATHER
+// AUTO-DETECT MAIN CITY WEATHER ONCE
+// =========================
+let locationDetected = false;
+
+async function detectMainCityWeatherOnce() {
+    if (locationDetected) return;
+    locationDetected = true;
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            try {
+                const res = await fetch(`/weather?city=${lat},${lon}`);
+                if (!res.ok) throw new Error('Network response was not ok');
+                const data = await res.json();
+
+                if (data && data.name) {
+                    updateWeather(data);
+                } else {
+                    getWeather('Kolkata');
+                }
+            } catch (err) {
+                console.error('Location detection failed', err);
+                getWeather('Kolkata');
+            }
+        }, () => {
+            getWeather('Kolkata');
+        });
+    } else {
+        getWeather('Kolkata');
+    }
+}
+
+// =========================
+// MANUAL AUTO WEATHER BUTTON
 // =========================
 if (autoWeatherBtn) {
     autoWeatherBtn.addEventListener('click', () => {
@@ -140,13 +175,6 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
-window.addEventListener('load', () => {
-    getWeather('Kolkata');
-    if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-    if (instagramBtn) instagramBtn.style.display = 'none';
-    if (githubBtn) githubBtn.style.display = 'none';
-});
-
 // =========================
 // CLOUD GAME POPUP
 // =========================
@@ -167,7 +195,7 @@ if (closePopupBtn) {
 }
 
 // =========================
-// ADMIN INFO PANEL TOGGLE
+// AUTO CLOSE ADMIN PANEL AFTER 5 SEC OR CLICK OUTSIDE
 // =========================
 if (adminBtn) {
     adminBtn.addEventListener('click', () => {
@@ -182,6 +210,24 @@ if (adminBtn) {
             githubBtn.style.display = 'flex';
             if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
             adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Auto close after 5 seconds
+            setTimeout(() => {
+                adminPanel.style.display = 'none';
+                instagramBtn.style.display = 'none';
+                githubBtn.style.display = 'none';
+                if (cloudGameBtn) cloudGameBtn.style.display = 'none';
+            }, 5000);
+        }
+    });
+
+    // Close if clicked outside panel
+    document.addEventListener('click', (e) => {
+        if (!adminPanel.contains(e.target) && !adminBtn.contains(e.target)) {
+            adminPanel.style.display = 'none';
+            instagramBtn.style.display = 'none';
+            githubBtn.style.display = 'none';
+            if (cloudGameBtn) cloudGameBtn.style.display = 'none';
         }
     });
 }
@@ -201,3 +247,13 @@ if (homeBtn) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 }
+
+// =========================
+// ON PAGE LOAD
+// =========================
+window.addEventListener('load', () => {
+    detectMainCityWeatherOnce();
+    if (cloudGameBtn) cloudGameBtn.style.display = 'none';
+    if (instagramBtn) instagramBtn.style.display = 'none';
+    if (githubBtn) githubBtn.style.display = 'none';
+});
