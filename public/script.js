@@ -1,5 +1,5 @@
 // =========================
-// 🌐 VARIABLES
+// VARIABLES
 // =========================
 const searchBtn = document.getElementById('searchBtn');
 const cityInput = document.getElementById('cityInput');
@@ -18,6 +18,7 @@ const homeBtn = document.querySelector('.btn-nav[href="/"]');
 const cloudGameBtn = document.getElementById('weatherGameBtn');
 const cloudPopup = document.getElementById('cloudPopup');
 const closePopupBtn = document.getElementById('closePopup');
+const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 
 const adminBtn = document.getElementById('adminBtn');
 const adminPanel = document.getElementById('adminPanel');
@@ -28,60 +29,78 @@ let searchCount = 0;
 let locationDetected = false;
 
 // =========================
-// ⏳ UTILITY FUNCTIONS
+// UTILITY FUNCTIONS
 // =========================
-const showLoading = () => { 
-    loadingElem.style.display = 'flex'; 
-    weatherInfo.style.display = 'none'; 
-};
-const hideLoading = () => { 
-    loadingElem.style.display = 'none'; 
-};
+function showLoading() {
+    loadingElem.style.display = 'flex';
+    weatherInfo.style.display = 'none';
+}
 
+function hideLoading() {
+    loadingElem.style.display = 'none';
+}
+
+function kelvinToCelsius(kelvin) {
+    return (kelvin - 273.15).toFixed(1);
+}
+
+// =========================
+// UPDATE WEATHER CARD
+// =========================
 function updateWeather(data) {
-    if (!data || !data.weather || !data.main) return;
-
     cityNameElem.textContent = data.name || 'Unknown City';
-    temperatureElem.textContent = `${(data.main.temp - 273.15).toFixed(1)} °C`;
+    temperatureElem.textContent = kelvinToCelsius(data.main.temp) + ' °C';
     weatherMainElem.textContent = data.weather[0].main || '--';
-    humidityElem.textContent = `${data.main.humidity} %`;
-    windSpeedElem.textContent = `${data.wind.speed} m/s`;
-    pressureElem.textContent = `${data.main.pressure} hPa`;
+    humidityElem.textContent = data.main.humidity + ' %';
+    windSpeedElem.textContent = data.wind.speed + ' m/s';
+    pressureElem.textContent = data.main.pressure + ' hPa';
 
     const iconCode = data.weather[0].icon;
-    weatherIconElem.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+    weatherIconElem.src = `http://openweathermap.org/img/wn/${iconCode}@2x.png`;
     weatherIconElem.alt = data.weather[0].description;
 
     weatherInfo.style.display = 'flex';
     weatherInfo.classList.remove('animate__fadeInUp');
-    void weatherInfo.offsetWidth; // reset animation
+    void weatherInfo.offsetWidth; // restart animation
     weatherInfo.classList.add('animate__fadeInUp');
 
     subtitleElem.textContent = `Live weather updates for ${data.name}`;
 
-    if (cloudGameBtn) cloudGameBtn.style.display = (searchCount >= 5) ? 'inline-block' : 'none';
+    if (cloudGameBtn) cloudGameBtn.classList.add('show');
 }
 
 // =========================
-// 🌤️ GET WEATHER
+// FETCH WEATHER FROM API
 // =========================
-async function getWeather(cityOrCoords) {
+async function getWeather(city) {
     showLoading();
-    try {
-        const url = (typeof cityOrCoords === 'string') 
-            ? `https://api.openweathermap.org/data/2.5/weather?q=${cityOrCoords}&appid=YOUR_API_KEY` 
-            : `https://api.openweathermap.org/data/2.5/weather?lat=${cityOrCoords.lat}&lon=${cityOrCoords.lon}&appid=YOUR_API_KEY`;
+    const apiKey = 'YOUR_API_KEY'; // <-- Replace this with your API Key
+    let url = '';
 
+    if (typeof city === 'string') {
+        url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`;
+    } else if (typeof city === 'object') {
+        const { lat, lon } = city;
+        url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+    }
+
+    try {
         const res = await fetch(url);
         if (!res.ok) throw new Error('City not found');
         const data = await res.json();
         updateWeather(data);
 
-        if (typeof cityOrCoords === 'string' && cityOrCoords.toLowerCase() !== 'kolkata') searchCount++;
+        if (typeof city === 'string' && city.toLowerCase() !== 'kolkata') searchCount++;
+
+        if (searchCount >= 5 && cloudGameBtn) {
+            cloudGameBtn.style.display = 'inline-block';
+        } else if (cloudGameBtn) {
+            cloudGameBtn.style.display = 'none';
+        }
     } catch (err) {
+        alert('Failed to fetch weather. Please check city name or your internet connection.');
         console.error(err);
         weatherInfo.style.display = 'none';
-        subtitleElem.textContent = 'City not found. Please try again.';
         if (cloudGameBtn) cloudGameBtn.style.display = 'none';
     } finally {
         hideLoading();
@@ -89,25 +108,28 @@ async function getWeather(cityOrCoords) {
 }
 
 // =========================
-// 📍 AUTO DETECT MAIN CITY WEATHER
+// AUTO-DETECT MAIN CITY WEATHER
 // =========================
-async function detectMainCityWeatherOnce() {
+function detectMainCityWeatherOnce() {
     if (locationDetected) return;
     locationDetected = true;
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const coords = { lat: position.coords.latitude, lon: position.coords.longitude };
-                await getWeather(coords);
-            }, 
-            () => getWeather('Kolkata') // fallback
+            (position) => {
+                getWeather({ lat: position.coords.latitude, lon: position.coords.longitude });
+            },
+            () => {
+                getWeather('Kolkata'); // fallback
+            }
         );
-    } else getWeather('Kolkata');
+    } else {
+        getWeather('Kolkata'); // fallback
+    }
 }
 
 // =========================
-// 🔎 SEARCH WEATHER EVENTS
+// EVENT LISTENERS
 // =========================
 searchBtn.addEventListener('click', () => {
     const city = cityInput.value.trim();
@@ -121,39 +143,69 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
-// =========================
-// ☁️ CLOUD GAME POPUP
-// =========================
 if (cloudGameBtn) {
     cloudGameBtn.addEventListener('click', () => {
-        cloudPopup.style.display = 'flex';
-        cloudPopup.querySelector('.emoji').style.animation = 'bounce 1s infinite';
+        if (cloudPopup) {
+            cloudPopup.style.display = 'flex';
+            const emoji = cloudPopup.querySelector('.emoji');
+            emoji.style.animation = 'bounce 1s infinite';
+        }
     });
 }
 
-if (closePopupBtn) closePopupBtn.addEventListener('click', () => {
-    cloudPopup.style.display = 'none';
-});
+if (closePopupBtn) {
+    closePopupBtn.addEventListener('click', () => {
+        if (cloudPopup) cloudPopup.style.display = 'none';
+    });
+}
+
+if (autoWeatherBtn) {
+    autoWeatherBtn.addEventListener('click', () => {
+        if (navigator.geolocation) {
+            showLoading();
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    getWeather({ lat: position.coords.latitude, lon: position.coords.longitude });
+                },
+                () => {
+                    alert('Permission denied. Please allow location access.');
+                    hideLoading();
+                }
+            );
+        } else {
+            alert('Geolocation is not supported by this browser.');
+        }
+    });
+}
 
 // =========================
-// ⚙️ ADMIN PANEL
+// ADMIN PANEL TOGGLE
 // =========================
 if (adminBtn) {
     adminBtn.addEventListener('click', () => {
-        adminPanel.style.display = 'flex';
-        instagramBtn.style.display = 'flex';
-        githubBtn.style.display = 'flex';
-        if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
-
-        setTimeout(() => {
+        const isVisible = adminPanel.style.display === 'flex';
+        if (isVisible) {
             adminPanel.style.display = 'none';
             instagramBtn.style.display = 'none';
             githubBtn.style.display = 'none';
             if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-        }, 5000);
+        } else {
+            adminPanel.style.display = 'flex';
+            instagramBtn.style.display = 'flex';
+            githubBtn.style.display = 'flex';
+            if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
+            adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            setTimeout(() => {
+                adminPanel.style.display = 'none';
+                instagramBtn.style.display = 'none';
+                githubBtn.style.display = 'none';
+                if (cloudGameBtn) cloudGameBtn.style.display = 'none';
+            }, 5000);
+        }
     });
 
-    window.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
         if (!adminPanel.contains(e.target) && !adminBtn.contains(e.target)) {
             adminPanel.style.display = 'none';
             instagramBtn.style.display = 'none';
@@ -164,14 +216,14 @@ if (adminBtn) {
 }
 
 // =========================
-// 🏠 HOME BUTTON
+// NAVBAR HOME BUTTON
 // =========================
 if (homeBtn) {
     homeBtn.addEventListener('click', () => {
         cityInput.value = '';
         weatherInfo.style.display = 'none';
         subtitleElem.textContent = 'Welcome to Oxygen Weather';
-        if (cloudGameBtn) cloudGameBtn.style.display = 'none';
+        if (cloudGameBtn) cloudGameBtn.classList.remove('show');
         if (adminPanel) adminPanel.style.display = 'none';
         if (instagramBtn) instagramBtn.style.display = 'none';
         if (githubBtn) githubBtn.style.display = 'none';
@@ -180,7 +232,7 @@ if (homeBtn) {
 }
 
 // =========================
-// 🔄 ON PAGE LOAD
+// ON PAGE LOAD
 // =========================
 window.addEventListener('load', () => {
     detectMainCityWeatherOnce();

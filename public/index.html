@@ -1,128 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OXYGEN WEATHER - 2025 Susnata Biswas Reserve</title>
-
-  <!-- Google Fonts & Animate.css -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-  
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OXYGEN WEATHER - 2025 Susnata Biswas Reserve</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<!-- LEFT PANEL -->
+<div id="leftPanel" class="left-panel">
+  <button id="homeBtn">🏠 Home</button>
+  <button id="feedbackBtn">✍️ Feedback</button>
 
-  <!-- ========================= -->
-  <!-- 🌐 Navbar -->
-  <!-- ========================= -->
-  <nav class="navbar">
-    <a href="/" class="logo">🌦️ OXYGEN WEATHER</a>
-    <ul>
-      <li><a href="/" class="btn-nav">Home</a></li>
-      <li><a href="https://susnatacodes.blogspot.com" target="_blank" class="btn-nav">Website</a></li>
-      <li><button id="adminBtn" class="btn-nav">Admin Info</button></li>
-    </ul>
-  </nav>
+  <!-- Social Buttons (hidden initially) -->
+  <div id="socialButtons" class="social-hidden">
+    <button id="whatsappBtn">💬 WhatsApp</button>
+    <button id="instagramBtn">📸 Instagram</button>
+  </div>
+</div>
 
-  <!-- Watermark -->
-  <div class="watermark">© 2025 Susnata Biswas Reserve</div>
+<!-- Watermark -->
+<div class="watermark">© 2025 Susnata Biswas Reserve</div>
 
-  <!-- ========================= -->
-  <!-- 🌟 Header Section -->
-  <!-- ========================= -->
-  <header>
+<!-- Header -->
+<header>
     <h1 class="animate__animated animate__fadeInDown">OXYGEN WEATHER</h1>
     <p id="subtitle" class="animate__animated animate__fadeInUp">Live professional weather updates</p>
-  </header>
+</header>
 
-  <!-- ========================= -->
-  <!-- 🔍 Search Section -->
-  <!-- ========================= -->
-  <main>
-    <section class="search-section">
-      <div class="search-box animate__animated animate__fadeIn">
-        <input type="text" id="cityInput" placeholder="Enter city name...">
-        <button id="searchBtn" class="search-btn">Get Weather</button>
-      </div>
-    </section>
+<!-- Search Box + Weather Game Button in the same row -->
+<div class="search-box animate__animated animate__fadeIn">
+    <input type="text" id="cityInput" placeholder="Enter city name...">
+    <button id="searchBtn" class="search-btn">Get Weather</button>
+    <button id="weatherGameBtn" class="weather-game-btn" style="display:none;">Play Weather Game</button>
+</div>
 
-    <!-- ========================= -->
-    <!-- ⚙️ Admin Panel -->
-    <!-- ========================= -->
-    <aside id="adminPanel">
-      <button class="emailBtn" onclick="window.open('mailto:sbmrbiswas@gmail.com')">📧 Email</button>
-      <button class="instagramBtn" onclick="window.open('https://instagram.com/capture_withsusnata','_blank')">📸 Instagram</button>
-      <button class="githubBtn" onclick="window.open('https://github.com/susnatacodes','_blank')">💻 GitHub</button>
-      <button class="weatherGameBtn" id="weatherGameBtn">🎮 Weather Game</button>
-    </aside>
-
-    <!-- ========================= -->
-    <!-- ☁️ Cloud Popup -->
-    <!-- ========================= -->
-    <div id="cloudPopup">
-      <div class="popup-content">
+<!-- Cloud Game Popup -->
+<div id="cloudPopup" class="popup">
+    <div class="popup-content">
         <div class="emoji">😊</div>
         <h2>Coming Soon!</h2>
         <p>Thanks for your interest.</p>
         <button id="closePopup">Close</button>
-      </div>
     </div>
+</div>
 
-    <!-- ========================= -->
-    <!-- ⏳ Loading Spinner -->
-    <!-- ========================= -->
-    <div id="loading" class="loading" style="display:none;">
-      <div class="spinner"></div>
-      <p>Fetching weather data...</p>
-    </div>
+<!-- Loading Spinner -->
+<div id="loading" class="loading" style="display:none;">
+    <div class="spinner"></div>
+    <p>Fetching weather data...</p>
+</div>
 
-    <!-- ========================= -->
-    <!-- 🌤️ Weather Info Card -->
-    <!-- ========================= -->
-    <section class="weather-info animate__animated animate__fadeInUp" id="weatherInfo" style="display: none;">
-      <h2 id="cityName">City Name</h2>
-      <div class="weather-main">
+<!-- Weather Info -->
+<div class="weather-info animate__animated animate__fadeInUp" id="weatherInfo" style="display: none;">
+    <h2 id="cityName">City Name</h2>
+    <div class="weather-main">
         <img id="weatherIcon" src="" alt="Weather Icon">
         <span id="weatherMain">--</span>
-      </div>
-      <div class="details">
+    </div>
+    <div class="details">
         <div>
-          <p>🌤️ Condition</p>
-          <span id="conditionIcon">--</span>
+            <p>Condition</p>
+            <span id="conditionIcon">🌤️</span>
         </div>
         <div>
-          <p>🌡️ Temperature</p>
-          <span id="temperature">-- °C</span>
+            <p>Temperature</p>
+            <span id="temperature">-- °C</span>
         </div>
         <div>
-          <p>💧 Humidity</p>
-          <span id="humidity">-- %</span>
+            <p>Humidity</p>
+            <span id="humidity">-- %</span>
         </div>
         <div>
-          <p>💨 Wind Speed</p>
-          <span id="windSpeed">-- m/s</span>
+            <p>Wind Speed</p>
+            <span id="windSpeed">-- m/s</span>
         </div>
         <div>
-          <p>🌍 Pressure</p>
-          <span id="pressure">-- hPa</span>
+            <p>Pressure</p>
+            <span id="pressure">-- hPa</span>
         </div>
-      </div>
-    </section>
-  </main>
+    </div>
+</div>
 
-  <!-- ========================= -->
-  <!-- 📝 Footer -->
-  <!-- ========================= -->
-  <footer>
+<!-- Footer -->
+<footer>
     <p>&copy; 2025 Susnata Biswas Reserve. All rights reserved.</p>
     <p>Developed by Susnata Biswas</p>
-  </footer>
+</footer>
 
-  <!-- ========================= -->
-  <!-- 📜 Custom JS -->
-  <!-- ========================= -->
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
