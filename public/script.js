@@ -14,19 +14,17 @@ const weatherIconElem = document.getElementById('weatherIcon');
 const loadingElem = document.getElementById('loading');
 const subtitleElem = document.getElementById('subtitle');
 
-const homeBtn = document.querySelector('.btn-nav[href="/"]');
+const homeBtn = document.getElementById('homeBtn');
+const instagramBtn = document.getElementById('instagramBtn');
+const whatsappBtn = document.getElementById('whatsappBtn');
+const feedbackBtn = document.getElementById('feedbackBtn');
+
 const cloudGameBtn = document.getElementById('weatherGameBtn');
 const cloudPopup = document.getElementById('cloudPopup');
 const closePopupBtn = document.getElementById('closePopup');
-const autoWeatherBtn = document.getElementById('autoWeatherBtn');
 
-const adminBtn = document.getElementById('adminBtn');
-const adminPanel = document.getElementById('adminPanel');
-const instagramBtn = document.querySelector('.instagramBtn');
-const githubBtn = document.querySelector('.githubBtn');
-
+let socialVisible = false;
 let searchCount = 0;
-let locationDetected = false;
 
 // =========================
 // UTILITY FUNCTIONS
@@ -40,16 +38,12 @@ function hideLoading() {
     loadingElem.style.display = 'none';
 }
 
-function kelvinToCelsius(kelvin) {
-    return (kelvin - 273.15).toFixed(1);
-}
-
 // =========================
 // UPDATE WEATHER CARD
 // =========================
 function updateWeather(data) {
     cityNameElem.textContent = data.name || 'Unknown City';
-    temperatureElem.textContent = kelvinToCelsius(data.main.temp) + ' °C';
+    temperatureElem.textContent = (data.main.temp - 273.15).toFixed(1) + ' °C';
     weatherMainElem.textContent = data.weather[0].main || '--';
     humidityElem.textContent = data.main.humidity + ' %';
     windSpeedElem.textContent = data.wind.speed + ' m/s';
@@ -61,70 +55,44 @@ function updateWeather(data) {
 
     weatherInfo.style.display = 'flex';
     weatherInfo.classList.remove('animate__fadeInUp');
-    void weatherInfo.offsetWidth; // restart animation
+    void weatherInfo.offsetWidth;
     weatherInfo.classList.add('animate__fadeInUp');
 
     subtitleElem.textContent = `Live weather updates for ${data.name}`;
 
+    // Show Weather Game button in same row after successful weather fetch
     if (cloudGameBtn) cloudGameBtn.classList.add('show');
 }
 
 // =========================
-// FETCH WEATHER FROM API
+// FETCH WEATHER
 // =========================
 async function getWeather(city) {
     showLoading();
-    const apiKey = 'YOUR_API_KEY'; // <-- Replace this with your API Key
-    let url = '';
-
-    if (typeof city === 'string') {
-        url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`;
-    } else if (typeof city === 'object') {
-        const { lat, lon } = city;
-        url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`;
-    }
-
     try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('City not found');
+        const res = await fetch(`/weather?city=${city}`);
+        if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         updateWeather(data);
 
-        if (typeof city === 'string' && city.toLowerCase() !== 'kolkata') searchCount++;
+        // Only increment for user searches (not initial load)
+        if (city.toLowerCase() !== 'kolkata') {
+            searchCount++;
+        }
 
-        if (searchCount >= 5 && cloudGameBtn) {
+        // Show the button after 5 successful searches
+        if (searchCount >= 5) {
             cloudGameBtn.style.display = 'inline-block';
-        } else if (cloudGameBtn) {
+        } else {
             cloudGameBtn.style.display = 'none';
         }
     } catch (err) {
-        alert('Failed to fetch weather. Please check city name or your internet connection.');
+        alert('Failed to fetch weather. Try again!');
         console.error(err);
         weatherInfo.style.display = 'none';
-        if (cloudGameBtn) cloudGameBtn.style.display = 'none';
+        cloudGameBtn.style.display = 'none';
     } finally {
         hideLoading();
-    }
-}
-
-// =========================
-// AUTO-DETECT MAIN CITY WEATHER
-// =========================
-function detectMainCityWeatherOnce() {
-    if (locationDetected) return;
-    locationDetected = true;
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                getWeather({ lat: position.coords.latitude, lon: position.coords.longitude });
-            },
-            () => {
-                getWeather('Kolkata'); // fallback
-            }
-        );
-    } else {
-        getWeather('Kolkata'); // fallback
     }
 }
 
@@ -143,6 +111,58 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
+window.addEventListener('load', () => {
+    getWeather('Kolkata');
+    cloudGameBtn.style.display = 'none'; // Hide on initial load
+});
+
+if (homeBtn) {
+    homeBtn.addEventListener('click', () => {
+        cityInput.value = '';
+        weatherInfo.style.display = 'none';
+        subtitleElem.textContent = 'Welcome to Oxygen Weather';
+
+        // Hide Weather Game button on home
+        if (cloudGameBtn) cloudGameBtn.classList.remove('show');
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+}
+
+// =========================
+// FEEDBACK BUTTON
+// =========================
+if (feedbackBtn) {
+    feedbackBtn.addEventListener('click', () => {
+        socialVisible = !socialVisible;
+        if (socialVisible) {
+            instagramBtn.classList.add('show');
+            whatsappBtn.classList.add('show');
+        } else {
+            instagramBtn.classList.remove('show');
+            whatsappBtn.classList.remove('show');
+        }
+    });
+}
+
+// =========================
+// SOCIAL BUTTONS
+// =========================
+if (whatsappBtn) {
+    whatsappBtn.addEventListener('click', () => {
+        window.open('https://wa.me/918392045833', '_blank');
+    });
+}
+
+if (instagramBtn) {
+    instagramBtn.addEventListener('click', () => {
+        window.open('https://instagram.com/capture_withsusnata', '_blank');
+    });
+}
+
+// =========================
+// CLOUD GAME POPUP
+// =========================
 if (cloudGameBtn) {
     cloudGameBtn.addEventListener('click', () => {
         if (cloudPopup) {
@@ -158,85 +178,3 @@ if (closePopupBtn) {
         if (cloudPopup) cloudPopup.style.display = 'none';
     });
 }
-
-if (autoWeatherBtn) {
-    autoWeatherBtn.addEventListener('click', () => {
-        if (navigator.geolocation) {
-            showLoading();
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    getWeather({ lat: position.coords.latitude, lon: position.coords.longitude });
-                },
-                () => {
-                    alert('Permission denied. Please allow location access.');
-                    hideLoading();
-                }
-            );
-        } else {
-            alert('Geolocation is not supported by this browser.');
-        }
-    });
-}
-
-// =========================
-// ADMIN PANEL TOGGLE
-// =========================
-if (adminBtn) {
-    adminBtn.addEventListener('click', () => {
-        const isVisible = adminPanel.style.display === 'flex';
-        if (isVisible) {
-            adminPanel.style.display = 'none';
-            instagramBtn.style.display = 'none';
-            githubBtn.style.display = 'none';
-            if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-        } else {
-            adminPanel.style.display = 'flex';
-            instagramBtn.style.display = 'flex';
-            githubBtn.style.display = 'flex';
-            if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
-            adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-            setTimeout(() => {
-                adminPanel.style.display = 'none';
-                instagramBtn.style.display = 'none';
-                githubBtn.style.display = 'none';
-                if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-            }, 5000);
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!adminPanel.contains(e.target) && !adminBtn.contains(e.target)) {
-            adminPanel.style.display = 'none';
-            instagramBtn.style.display = 'none';
-            githubBtn.style.display = 'none';
-            if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-        }
-    });
-}
-
-// =========================
-// NAVBAR HOME BUTTON
-// =========================
-if (homeBtn) {
-    homeBtn.addEventListener('click', () => {
-        cityInput.value = '';
-        weatherInfo.style.display = 'none';
-        subtitleElem.textContent = 'Welcome to Oxygen Weather';
-        if (cloudGameBtn) cloudGameBtn.classList.remove('show');
-        if (adminPanel) adminPanel.style.display = 'none';
-        if (instagramBtn) instagramBtn.style.display = 'none';
-        if (githubBtn) githubBtn.style.display = 'none';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-}
-
-// =========================
-// ON PAGE LOAD
-// =========================
-window.addEventListener('load', () => {
-    detectMainCityWeatherOnce();
-    if (cloudGameBtn) cloudGameBtn.style.display = 'none';
-    if (instagramBtn) instagramBtn.style.display = 'none';
-    if (githubBtn) githubBtn.style.display = 'none';
-});
