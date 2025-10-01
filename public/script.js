@@ -1,5 +1,5 @@
 // =========================
-// VARIABLES
+// 🌐 VARIABLES
 // =========================
 const searchBtn = document.getElementById('searchBtn');
 const cityInput = document.getElementById('cityInput');
@@ -28,26 +28,33 @@ let searchCount = 0;
 let locationDetected = false;
 
 // =========================
-// UTILITY FUNCTIONS
+// ⏳ UTILITY FUNCTIONS
 // =========================
-const showLoading = () => { loadingElem.style.display = 'flex'; weatherInfo.style.display = 'none'; };
-const hideLoading = () => { loadingElem.style.display = 'none'; };
+const showLoading = () => { 
+    loadingElem.style.display = 'flex'; 
+    weatherInfo.style.display = 'none'; 
+};
+const hideLoading = () => { 
+    loadingElem.style.display = 'none'; 
+};
 
 function updateWeather(data) {
+    if (!data || !data.weather || !data.main) return;
+
     cityNameElem.textContent = data.name || 'Unknown City';
-    temperatureElem.textContent = (data.main.temp - 273.15).toFixed(1) + ' °C';
+    temperatureElem.textContent = `${(data.main.temp - 273.15).toFixed(1)} °C`;
     weatherMainElem.textContent = data.weather[0].main || '--';
-    humidityElem.textContent = data.main.humidity + ' %';
-    windSpeedElem.textContent = data.wind.speed + ' m/s';
-    pressureElem.textContent = data.main.pressure + ' hPa';
+    humidityElem.textContent = `${data.main.humidity} %`;
+    windSpeedElem.textContent = `${data.wind.speed} m/s`;
+    pressureElem.textContent = `${data.main.pressure} hPa`;
 
     const iconCode = data.weather[0].icon;
-    weatherIconElem.src = `http://openweathermap.org/img/wn/${iconCode}@2x.png`;
+    weatherIconElem.src = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
     weatherIconElem.alt = data.weather[0].description;
 
     weatherInfo.style.display = 'flex';
     weatherInfo.classList.remove('animate__fadeInUp');
-    void weatherInfo.offsetWidth;
+    void weatherInfo.offsetWidth; // reset animation
     weatherInfo.classList.add('animate__fadeInUp');
 
     subtitleElem.textContent = `Live weather updates for ${data.name}`;
@@ -55,18 +62,26 @@ function updateWeather(data) {
     if (cloudGameBtn) cloudGameBtn.style.display = (searchCount >= 5) ? 'inline-block' : 'none';
 }
 
-async function getWeather(city) {
+// =========================
+// 🌤️ GET WEATHER
+// =========================
+async function getWeather(cityOrCoords) {
     showLoading();
     try {
-        const res = await fetch(`/weather?city=${city}`);
-        if (!res.ok) throw new Error('Network response was not ok');
+        const url = (typeof cityOrCoords === 'string') 
+            ? `https://api.openweathermap.org/data/2.5/weather?q=${cityOrCoords}&appid=YOUR_API_KEY` 
+            : `https://api.openweathermap.org/data/2.5/weather?lat=${cityOrCoords.lat}&lon=${cityOrCoords.lon}&appid=YOUR_API_KEY`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('City not found');
         const data = await res.json();
         updateWeather(data);
 
-        if (city.toLowerCase() !== 'kolkata') searchCount++;
+        if (typeof cityOrCoords === 'string' && cityOrCoords.toLowerCase() !== 'kolkata') searchCount++;
     } catch (err) {
         console.error(err);
         weatherInfo.style.display = 'none';
+        subtitleElem.textContent = 'City not found. Please try again.';
         if (cloudGameBtn) cloudGameBtn.style.display = 'none';
     } finally {
         hideLoading();
@@ -74,30 +89,25 @@ async function getWeather(city) {
 }
 
 // =========================
-// AUTO DETECT MAIN CITY WEATHER ONCE
+// 📍 AUTO DETECT MAIN CITY WEATHER
 // =========================
 async function detectMainCityWeatherOnce() {
     if (locationDetected) return;
     locationDetected = true;
 
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            try {
-                const res = await fetch(`/weather?city=${lat},${lon}`);
-                const data = await res.json();
-                if (data.name) updateWeather(data);
-                else getWeather('Kolkata');
-            } catch {
-                getWeather('Kolkata');
-            }
-        }, () => getWeather('Kolkata'));
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const coords = { lat: position.coords.latitude, lon: position.coords.longitude };
+                await getWeather(coords);
+            }, 
+            () => getWeather('Kolkata') // fallback
+        );
     } else getWeather('Kolkata');
 }
 
 // =========================
-// SEARCH WEATHER
+// 🔎 SEARCH WEATHER EVENTS
 // =========================
 searchBtn.addEventListener('click', () => {
     const city = cityInput.value.trim();
@@ -112,7 +122,7 @@ cityInput.addEventListener('keypress', (e) => {
 });
 
 // =========================
-// CLOUD GAME POPUP
+// ☁️ CLOUD GAME POPUP
 // =========================
 if (cloudGameBtn) {
     cloudGameBtn.addEventListener('click', () => {
@@ -120,10 +130,13 @@ if (cloudGameBtn) {
         cloudPopup.querySelector('.emoji').style.animation = 'bounce 1s infinite';
     });
 }
-if (closePopupBtn) closePopupBtn.addEventListener('click', () => cloudPopup.style.display = 'none');
+
+if (closePopupBtn) closePopupBtn.addEventListener('click', () => {
+    cloudPopup.style.display = 'none';
+});
 
 // =========================
-// ADMIN PANEL
+// ⚙️ ADMIN PANEL
 // =========================
 if (adminBtn) {
     adminBtn.addEventListener('click', () => {
@@ -131,7 +144,6 @@ if (adminBtn) {
         instagramBtn.style.display = 'flex';
         githubBtn.style.display = 'flex';
         if (cloudGameBtn) cloudGameBtn.style.display = 'inline-block';
-        adminPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         setTimeout(() => {
             adminPanel.style.display = 'none';
@@ -152,14 +164,14 @@ if (adminBtn) {
 }
 
 // =========================
-// HOME BUTTON
+// 🏠 HOME BUTTON
 // =========================
 if (homeBtn) {
     homeBtn.addEventListener('click', () => {
         cityInput.value = '';
         weatherInfo.style.display = 'none';
         subtitleElem.textContent = 'Welcome to Oxygen Weather';
-        if (cloudGameBtn) cloudGameBtn.classList.remove('show');
+        if (cloudGameBtn) cloudGameBtn.style.display = 'none';
         if (adminPanel) adminPanel.style.display = 'none';
         if (instagramBtn) instagramBtn.style.display = 'none';
         if (githubBtn) githubBtn.style.display = 'none';
@@ -168,7 +180,7 @@ if (homeBtn) {
 }
 
 // =========================
-// ON PAGE LOAD
+// 🔄 ON PAGE LOAD
 // =========================
 window.addEventListener('load', () => {
     detectMainCityWeatherOnce();

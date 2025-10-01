@@ -1,106 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OXYGEN WEATHER - 2025 Susnata Biswas Reserve</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OXYGEN WEATHER - 2025 Susnata Biswas Reserve</title>
 
-<!-- Fonts & Animate.css -->
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-
-<!-- Upgraded CSS -->
-<link rel="stylesheet" href="style.css">
+  <!-- Google Fonts & Animate.css -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ✅ Navbar -->
-<nav class="navbar">
-  <a href="/" class="logo">🌦️ OXYGEN WEATHER</a>
-  <ul>
-    <li><a href="/" class="btn-nav">Home</a></li>
-    <li><a href="https://susnatacodes.blogspot.com" target="_blank" class="btn-nav">Website</a></li>
-    <li><button id="adminBtn" class="btn-nav">Admin Info</button></li>
-  </ul>
-</nav>
+  <!-- ========================= -->
+  <!-- 🌐 Navbar -->
+  <!-- ========================= -->
+  <nav class="navbar">
+    <a href="/" class="logo">🌦️ OXYGEN WEATHER</a>
+    <ul>
+      <li><a href="/" class="btn-nav">Home</a></li>
+      <li><a href="https://susnatacodes.blogspot.com" target="_blank" class="btn-nav">Website</a></li>
+      <li><button id="adminBtn" class="btn-nav">Admin Info</button></li>
+    </ul>
+  </nav>
 
-<!-- Watermark -->
-<div class="watermark">© 2025 Susnata Biswas Reserve</div>
+  <!-- Watermark -->
+  <div class="watermark">© 2025 Susnata Biswas Reserve</div>
 
-<!-- Header -->
-<header>
-  <h1 class="animate__animated animate__fadeInDown">OXYGEN WEATHER</h1>
-  <p id="subtitle" class="animate__animated animate__fadeInUp">Live professional weather updates</p>
-</header>
+  <!-- ========================= -->
+  <!-- 🌟 Header Section -->
+  <!-- ========================= -->
+  <header>
+    <h1 class="animate__animated animate__fadeInDown">OXYGEN WEATHER</h1>
+    <p id="subtitle" class="animate__animated animate__fadeInUp">Live professional weather updates</p>
+  </header>
 
-<!-- Search Box -->
-<div class="search-box animate__animated animate__fadeIn">
-  <input type="text" id="cityInput" placeholder="Enter city name...">
-  <button id="searchBtn" class="search-btn">Get Weather</button>
-</div>
+  <!-- ========================= -->
+  <!-- 🔍 Search Section -->
+  <!-- ========================= -->
+  <main>
+    <section class="search-section">
+      <div class="search-box animate__animated animate__fadeIn">
+        <input type="text" id="cityInput" placeholder="Enter city name...">
+        <button id="searchBtn" class="search-btn">Get Weather</button>
+      </div>
+    </section>
 
-<!-- Admin Panel -->
-<div id="adminPanel">
-  <button class="emailBtn" onclick="window.open('mailto:sbmrbiswas@gmail.com')">Email</button>
-  <button class="instagramBtn" onclick="window.open('https://instagram.com/capture_withsusnata','_blank')">Instagram</button>
-  <button class="githubBtn" onclick="window.open('https://github.com/susnatacodes','_blank')">GitHub</button>
-  <button class="weatherGameBtn" id="weatherGameBtn">Play Weather Game</button>
-</div>
+    <!-- ========================= -->
+    <!-- ⚙️ Admin Panel -->
+    <!-- ========================= -->
+    <aside id="adminPanel">
+      <button class="emailBtn" onclick="window.open('mailto:sbmrbiswas@gmail.com')">📧 Email</button>
+      <button class="instagramBtn" onclick="window.open('https://instagram.com/capture_withsusnata','_blank')">📸 Instagram</button>
+      <button class="githubBtn" onclick="window.open('https://github.com/susnatacodes','_blank')">💻 GitHub</button>
+      <button class="weatherGameBtn" id="weatherGameBtn">🎮 Weather Game</button>
+    </aside>
 
-<!-- Cloud Game Popup -->
-<div id="cloudPopup">
-  <div class="popup-content">
-    <div class="emoji">😊</div>
-    <h2>Coming Soon!</h2>
-    <p>Thanks for your interest.</p>
-    <button id="closePopup">Close</button>
-  </div>
-</div>
-
-<!-- Loading Spinner -->
-<div id="loading" class="loading" style="display:none;">
-  <div class="spinner"></div>
-  <p>Fetching weather data...</p>
-</div>
-
-<!-- Weather Info -->
-<div class="weather-info animate__animated animate__fadeInUp" id="weatherInfo" style="display: none;">
-  <h2 id="cityName">City Name</h2>
-  <div class="weather-main">
-    <img id="weatherIcon" src="" alt="Weather Icon">
-    <span id="weatherMain">--</span>
-  </div>
-  <div class="details">
-    <div>
-      <p>Condition</p>
-      <span id="conditionIcon">🌤️</span>
+    <!-- ========================= -->
+    <!-- ☁️ Cloud Popup -->
+    <!-- ========================= -->
+    <div id="cloudPopup">
+      <div class="popup-content">
+        <div class="emoji">😊</div>
+        <h2>Coming Soon!</h2>
+        <p>Thanks for your interest.</p>
+        <button id="closePopup">Close</button>
+      </div>
     </div>
-    <div>
-      <p>Temperature</p>
-      <span id="temperature">-- °C</span>
-    </div>
-    <div>
-      <p>Humidity</p>
-      <span id="humidity">-- %</span>
-    </div>
-    <div>
-      <p>Wind Speed</p>
-      <span id="windSpeed">-- m/s</span>
-    </div>
-    <div>
-      <p>Pressure</p>
-      <span id="pressure">-- hPa</span>
-    </div>
-  </div>
-</div>
 
-<!-- Footer -->
-<footer>
-  <p>&copy; 2025 Susnata Biswas Reserve. All rights reserved.</p>
-  <p>Developed by Susnata Biswas</p>
-</footer>
+    <!-- ========================= -->
+    <!-- ⏳ Loading Spinner -->
+    <!-- ========================= -->
+    <div id="loading" class="loading" style="display:none;">
+      <div class="spinner"></div>
+      <p>Fetching weather data...</p>
+    </div>
 
-<!-- Upgraded JS -->
-<script src="script.js"></script>
+    <!-- ========================= -->
+    <!-- 🌤️ Weather Info Card -->
+    <!-- ========================= -->
+    <section class="weather-info animate__animated animate__fadeInUp" id="weatherInfo" style="display: none;">
+      <h2 id="cityName">City Name</h2>
+      <div class="weather-main">
+        <img id="weatherIcon" src="" alt="Weather Icon">
+        <span id="weatherMain">--</span>
+      </div>
+      <div class="details">
+        <div>
+          <p>🌤️ Condition</p>
+          <span id="conditionIcon">--</span>
+        </div>
+        <div>
+          <p>🌡️ Temperature</p>
+          <span id="temperature">-- °C</span>
+        </div>
+        <div>
+          <p>💧 Humidity</p>
+          <span id="humidity">-- %</span>
+        </div>
+        <div>
+          <p>💨 Wind Speed</p>
+          <span id="windSpeed">-- m/s</span>
+        </div>
+        <div>
+          <p>🌍 Pressure</p>
+          <span id="pressure">-- hPa</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================= -->
+  <!-- 📝 Footer -->
+  <!-- ========================= -->
+  <footer>
+    <p>&copy; 2025 Susnata Biswas Reserve. All rights reserved.</p>
+    <p>Developed by Susnata Biswas</p>
+  </footer>
+
+  <!-- ========================= -->
+  <!-- 📜 Custom JS -->
+  <!-- ========================= -->
+  <script src="script.js"></script>
 </body>
 </html>
