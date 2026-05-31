@@ -34,6 +34,10 @@ body {
     overflow-x: hidden;
 }
 
+body.has-earthquake-overlay {
+    overflow: hidden;
+}
+
 body[data-weather="storm"] .storm-flash {
     animation-duration: 5.4s;
 }
@@ -1266,6 +1270,45 @@ h1 {
 .susnata-codes-link > * {
     position: relative;
     z-index: 1;
+}
+
+.earthquake-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: #0a0a0a;
+}
+
+.earthquake-overlay iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border: 0;
+    background: #0a0a0a;
+}
+
+.earthquake-close-button {
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #222;
+    border-radius: 0;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.earthquake-close-button:hover {
+    color: #fff;
+    border-color: #333;
+    background: rgba(17, 17, 17, 0.96);
 }
 
 .sr-only {

@@ -15,7 +15,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Celsius/Fahrenheit unit switching without extra API calls
 - Recent searches stored in the browser
 - Gmail/SMTP weather reminders with important alerts, one 12:00 AM daily report, and unsubscribe links
-- Live earthquake monitor page using USGS feeds and the same dark full-screen map visual
+- In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
 - Server-side caching, request timeouts, and cleaner API errors
 - Render deployment support
 

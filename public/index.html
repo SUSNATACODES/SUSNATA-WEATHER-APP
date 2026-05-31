@@ -72,10 +72,10 @@
                             <i data-lucide="mail-check"></i>
                             <span>Mail Alerts</span>
                         </button>
-                        <a href="/earthquakes">
+                        <button type="button" data-menu-action="earthquake">
                             <i data-lucide="activity"></i>
                             <span>Earthquake Monitor</span>
-                        </a>
+                        </button>
 
                         <span class="menu-heading">Connect</span>
                         <a href="https://wa.me/918392045833" target="_blank" rel="noopener noreferrer">
@@ -217,6 +217,13 @@
                 <i data-lucide="external-link" aria-hidden="true"></i>
             </a>
         </footer>
+    </div>
+
+    <div class="earthquake-overlay" id="earthquakeOverlay" aria-hidden="true" hidden>
+        <iframe id="earthquakeFrame" title="Live Earthquake Monitor" data-src="/earthquakes.html"></iframe>
+        <button class="earthquake-close-button" id="earthquakeCloseBtn" type="button" title="Back to Oxygen Weather" aria-label="Back to Oxygen Weather">
+            <i data-lucide="x" aria-hidden="true"></i>
+        </button>
     </div>
 
     <script src="https://unpkg.com/lucide@latest" defer></script>

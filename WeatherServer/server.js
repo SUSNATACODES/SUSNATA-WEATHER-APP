@@ -201,10 +201,6 @@ app.get('/mail-alerts/unsubscribe', async (req, res) => {
   `);
 });
 
-app.get('/earthquakes', (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, 'earthquakes.html'));
-});
-
 app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });

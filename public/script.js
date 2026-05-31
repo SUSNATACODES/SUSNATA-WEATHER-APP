@@ -30,6 +30,9 @@ const dom = {
     useCurrentWeatherForMail: document.getElementById('useCurrentWeatherForMail'),
     mailAlertsSubmit: document.getElementById('mailAlertsSubmit'),
     mailAlertsStatus: document.getElementById('mailAlertsStatus'),
+    earthquakeOverlay: document.getElementById('earthquakeOverlay'),
+    earthquakeFrame: document.getElementById('earthquakeFrame'),
+    earthquakeCloseBtn: document.getElementById('earthquakeCloseBtn'),
     weatherDashboard: document.getElementById('weatherDashboard'),
     recentSearches: document.getElementById('recentSearches'),
     cityName: document.getElementById('cityName'),
@@ -92,6 +95,10 @@ function wireEvents() {
         state.mailLocation = null;
     });
 
+    dom.earthquakeCloseBtn.addEventListener('click', () => {
+        closeEarthquakeMonitor();
+    });
+
     dom.refreshBtn.addEventListener('click', () => {
         refreshWeather();
     });
@@ -137,6 +144,10 @@ function wireEvents() {
             if (action === 'mail') {
                 focusMailAlerts();
             }
+
+            if (action === 'earthquake') {
+                openEarthquakeMonitor();
+            }
         });
     });
 
@@ -148,6 +159,12 @@ function wireEvents() {
                 renderWeather(state.weather);
             }
         });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !dom.earthquakeOverlay.hidden) {
+            closeEarthquakeMonitor();
+        }
     });
 }
 
@@ -168,6 +185,24 @@ function closeMenu() {
     dom.contactPanel.hidden = true;
     dom.feedbackBtn.setAttribute('aria-expanded', 'false');
     dom.feedbackBtn.classList.remove('is-open');
+}
+
+function openEarthquakeMonitor() {
+    if (!dom.earthquakeFrame.src) {
+        dom.earthquakeFrame.src = dom.earthquakeFrame.dataset.src;
+    }
+
+    dom.earthquakeOverlay.hidden = false;
+    dom.earthquakeOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('has-earthquake-overlay');
+    dom.earthquakeCloseBtn.focus({ preventScroll: true });
+}
+
+function closeEarthquakeMonitor() {
+    dom.earthquakeOverlay.hidden = true;
+    dom.earthquakeOverlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('has-earthquake-overlay');
+    dom.feedbackBtn.focus({ preventScroll: true });
 }
 
 function focusMailAlerts() {
