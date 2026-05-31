@@ -39,6 +39,10 @@
             </button>
 
             <div class="topbar-actions">
+                <button class="icon-button" id="loginOpenBtn" type="button" title="Login" aria-label="Open login">
+                    <i data-lucide="user-round"></i>
+                </button>
+
                 <button class="icon-button" id="refreshBtn" type="button" title="Refresh weather" aria-label="Refresh weather">
                     <i data-lucide="refresh-cw"></i>
                 </button>
@@ -67,6 +71,10 @@
                         <button type="button" data-menu-action="refresh">
                             <i data-lucide="refresh-cw"></i>
                             <span>Refresh</span>
+                        </button>
+                        <button type="button" data-menu-action="login">
+                            <i data-lucide="user-round"></i>
+                            <span>Login</span>
                         </button>
                         <button type="button" data-menu-action="mail">
                             <i data-lucide="mail-check"></i>
@@ -218,6 +226,21 @@
             </a>
         </footer>
     </div>
+
+    <div class="login-backdrop" id="loginBackdrop" hidden></div>
+    <section class="signup-login" id="loginPanel" aria-labelledby="loginTitle" aria-hidden="true" hidden>
+        <button class="signup-close" id="loginCloseBtn" type="button" aria-label="Close login">&times;</button>
+        <div class="signupForm">
+            <h2 id="loginTitle">Sign up now!</h2>
+            <form id="loginForm">
+                <span>
+                    <input id="loginEmail" type="email" name="email" placeholder="youremail@example.com" autocomplete="email" required>
+                    <input type="submit" value="Login">
+                </span>
+            </form>
+            <p class="login-status" id="loginStatus" role="status" hidden></p>
+        </div>
+    </section>
 
     <div class="earthquake-overlay" id="earthquakeOverlay" aria-hidden="true" hidden>
         <iframe id="earthquakeFrame" title="Live Earthquake Monitor" data-src="/earthquakes.html"></iframe>

@@ -38,6 +38,10 @@ body.has-earthquake-overlay {
     overflow: hidden;
 }
 
+body.has-login-panel {
+    overflow: hidden;
+}
+
 body[data-weather="storm"] .storm-flash {
     animation-duration: 5.4s;
 }
@@ -1272,6 +1276,118 @@ h1 {
     z-index: 1;
 }
 
+.login-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    background: rgba(23, 33, 47, 0.34);
+    opacity: 0;
+    transition: opacity 200ms ease;
+    backdrop-filter: blur(4px);
+}
+
+.login-backdrop.is-open {
+    opacity: 1;
+}
+
+.signup-login {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    z-index: 130;
+    width: min(600px, calc(100% - 32px));
+    min-height: 230px;
+    display: grid;
+    align-items: center;
+    background-color: rgb(46, 70, 121);
+    border: 4px solid #fff;
+    box-shadow: 0 0 5px 0 rgba(0, 0, 0, 1);
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: top 200ms ease, opacity 200ms ease;
+}
+
+.signup-login.is-open {
+    top: 50%;
+    opacity: 1;
+}
+
+.signupForm {
+    width: 100%;
+    position: relative;
+    margin: auto;
+    padding: 20px;
+    text-align: center;
+}
+
+.signupForm h2 {
+    margin: 0 0 24px;
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.signupForm form span {
+    display: inline-flex;
+    justify-content: center;
+    max-width: 100%;
+}
+
+.signupForm input {
+    min-height: 60px;
+    border: 0;
+    font-size: 1.12rem;
+    padding: 18px;
+    outline: 0;
+}
+
+.signupForm input[type="email"] {
+    width: min(350px, 100%);
+    color: var(--ink);
+    background: #fff;
+}
+
+.signupForm input[type="submit"] {
+    width: 120px;
+    margin-left: -4px;
+    color: #fff;
+    background-color: rgb(63, 97, 179);
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.signupForm input[type="submit"]:hover {
+    background-color: rgb(74, 112, 205);
+}
+
+.signup-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 5;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: transparent;
+    border: 0;
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.login-status {
+    min-height: 20px;
+    margin: 14px 0 0;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
 .earthquake-overlay {
     position: fixed;
     inset: 0;
@@ -1361,7 +1477,7 @@ h1 {
     .topbar-actions {
         width: 100%;
         display: grid;
-        grid-template-columns: 44px 88px minmax(0, 1fr);
+        grid-template-columns: 44px 44px 88px minmax(0, 1fr);
         justify-content: start;
         flex-wrap: initial;
     }
@@ -1455,9 +1571,30 @@ h1 {
 
     .topbar-actions {
         display: grid;
-        grid-template-columns: 44px 88px minmax(0, 1fr);
+        grid-template-columns: 44px 44px 88px minmax(0, 1fr);
         align-items: center;
         justify-content: start;
+    }
+
+    .signup-login {
+        width: min(100% - 20px, 600px);
+        min-height: 250px;
+    }
+
+    .signupForm h2 {
+        font-size: 1.55rem;
+    }
+
+    .signupForm form span {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .signupForm input[type="email"],
+    .signupForm input[type="submit"] {
+        width: 100%;
+        margin-left: 0;
     }
 
     .mail-alerts-meta {

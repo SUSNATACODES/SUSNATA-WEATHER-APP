@@ -1,10 +1,12 @@
 const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
+const LOGIN_EMAIL_KEY = 'oxygen-weather-login-email';
 
 const state = {
     unit: 'metric',
     weather: null,
     recentSearches: loadRecentSearches(),
+    loginEmail: localStorage.getItem(LOGIN_EMAIL_KEY) || '',
     lastRequest: {
         params: { city: DEFAULT_CITY },
         label: DEFAULT_CITY,
@@ -17,6 +19,13 @@ const dom = {
     cityInput: document.getElementById('cityInput'),
     searchBtn: document.getElementById('searchBtn'),
     locationBtn: document.getElementById('locationBtn'),
+    loginOpenBtn: document.getElementById('loginOpenBtn'),
+    loginBackdrop: document.getElementById('loginBackdrop'),
+    loginPanel: document.getElementById('loginPanel'),
+    loginForm: document.getElementById('loginForm'),
+    loginEmail: document.getElementById('loginEmail'),
+    loginCloseBtn: document.getElementById('loginCloseBtn'),
+    loginStatus: document.getElementById('loginStatus'),
     refreshBtn: document.getElementById('refreshBtn'),
     homeBtn: document.getElementById('homeBtn'),
     feedbackBtn: document.getElementById('feedbackBtn'),
@@ -68,6 +77,11 @@ async function initializeWeather() {
 }
 
 function wireEvents() {
+    if (state.loginEmail) {
+        dom.loginEmail.value = state.loginEmail;
+        dom.alertEmail.value = state.loginEmail;
+    }
+
     dom.weatherForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const city = dom.cityInput.value.trim().replace(/\s+/g, ' ');
@@ -80,6 +94,23 @@ function wireEvents() {
 
     dom.locationBtn.addEventListener('click', () => {
         useCurrentLocation();
+    });
+
+    dom.loginOpenBtn.addEventListener('click', () => {
+        openLoginPanel();
+    });
+
+    dom.loginCloseBtn.addEventListener('click', () => {
+        closeLoginPanel();
+    });
+
+    dom.loginBackdrop.addEventListener('click', () => {
+        closeLoginPanel();
+    });
+
+    dom.loginForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        saveLoginEmail();
     });
 
     dom.mailAlertsForm.addEventListener('submit', (event) => {
@@ -141,6 +172,10 @@ function wireEvents() {
                 refreshWeather();
             }
 
+            if (action === 'login') {
+                openLoginPanel();
+            }
+
             if (action === 'mail') {
                 focusMailAlerts();
             }
@@ -162,6 +197,11 @@ function wireEvents() {
     });
 
     document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !dom.loginPanel.hidden) {
+            closeLoginPanel();
+            return;
+        }
+
         if (event.key === 'Escape' && !dom.earthquakeOverlay.hidden) {
             closeEarthquakeMonitor();
         }
@@ -185,6 +225,62 @@ function closeMenu() {
     dom.contactPanel.hidden = true;
     dom.feedbackBtn.setAttribute('aria-expanded', 'false');
     dom.feedbackBtn.classList.remove('is-open');
+}
+
+function openLoginPanel() {
+    dom.loginBackdrop.hidden = false;
+    dom.loginPanel.hidden = false;
+    dom.loginPanel.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('has-login-panel');
+
+    window.requestAnimationFrame(() => {
+        dom.loginPanel.classList.add('is-open');
+        dom.loginBackdrop.classList.add('is-open');
+    });
+
+    window.setTimeout(() => {
+        dom.loginEmail.focus({ preventScroll: true });
+    }, 220);
+}
+
+function closeLoginPanel() {
+    dom.loginPanel.classList.remove('is-open');
+    dom.loginBackdrop.classList.remove('is-open');
+    document.body.classList.remove('has-login-panel');
+    dom.loginPanel.setAttribute('aria-hidden', 'true');
+
+    window.setTimeout(() => {
+        if (!dom.loginPanel.classList.contains('is-open')) {
+            dom.loginPanel.hidden = true;
+            dom.loginBackdrop.hidden = true;
+        }
+    }, 220);
+
+    dom.loginOpenBtn.focus({ preventScroll: true });
+}
+
+function saveLoginEmail() {
+    const email = dom.loginEmail.value.trim().toLowerCase();
+
+    if (!email || !dom.loginEmail.checkValidity()) {
+        showLoginStatus('Enter a valid email address.');
+        dom.loginEmail.focus();
+        return;
+    }
+
+    state.loginEmail = email;
+    localStorage.setItem(LOGIN_EMAIL_KEY, email);
+    dom.alertEmail.value = email;
+    showLoginStatus('Login saved. Gmail alert email is ready.');
+
+    window.setTimeout(() => {
+        closeLoginPanel();
+    }, 900);
+}
+
+function showLoginStatus(message) {
+    dom.loginStatus.textContent = message;
+    dom.loginStatus.hidden = false;
 }
 
 function openEarthquakeMonitor() {
