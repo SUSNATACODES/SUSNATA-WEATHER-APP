@@ -38,6 +38,7 @@ const dom = {
     aqiLabel: document.getElementById('aqiLabel'),
     airComponents: document.getElementById('airComponents'),
     unitButtons: Array.from(document.querySelectorAll('.unit-button')),
+    menuActionButtons: Array.from(document.querySelectorAll('[data-menu-action]')),
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -71,22 +72,18 @@ function wireEvents() {
     });
 
     dom.refreshBtn.addEventListener('click', () => {
-        loadWeather(state.lastRequest.params, {
-            label: state.lastRequest.label,
-            saveRecent: false,
-        });
+        refreshWeather();
     });
 
     dom.homeBtn.addEventListener('click', () => {
-        dom.cityInput.value = '';
-        loadWeather({ city: DEFAULT_CITY }, { label: DEFAULT_CITY, saveRecent: false });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        goHome();
     });
 
     dom.feedbackBtn.addEventListener('click', () => {
         const nextOpen = dom.contactPanel.hidden;
         dom.contactPanel.hidden = !nextOpen;
         dom.feedbackBtn.setAttribute('aria-expanded', String(nextOpen));
+        dom.feedbackBtn.classList.toggle('is-open', nextOpen);
     });
 
     document.addEventListener('click', (event) => {
@@ -95,9 +92,27 @@ function wireEvents() {
             !dom.feedbackBtn.contains(event.target) &&
             !dom.contactPanel.contains(event.target)
         ) {
-            dom.contactPanel.hidden = true;
-            dom.feedbackBtn.setAttribute('aria-expanded', 'false');
+            closeMenu();
         }
+    });
+
+    dom.menuActionButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.menuAction;
+            closeMenu();
+
+            if (action === 'home') {
+                goHome();
+            }
+
+            if (action === 'location') {
+                useCurrentLocation();
+            }
+
+            if (action === 'refresh') {
+                refreshWeather();
+            }
+        });
     });
 
     dom.unitButtons.forEach((button) => {
@@ -109,6 +124,25 @@ function wireEvents() {
             }
         });
     });
+}
+
+function goHome() {
+    dom.cityInput.value = '';
+    loadWeather({ city: DEFAULT_CITY }, { label: DEFAULT_CITY, saveRecent: false });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function refreshWeather() {
+    loadWeather(state.lastRequest.params, {
+        label: state.lastRequest.label,
+        saveRecent: false,
+    });
+}
+
+function closeMenu() {
+    dom.contactPanel.hidden = true;
+    dom.feedbackBtn.setAttribute('aria-expanded', 'false');
+    dom.feedbackBtn.classList.remove('is-open');
 }
 
 async function loadWeather(params, options = {}) {

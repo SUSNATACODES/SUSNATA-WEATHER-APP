@@ -49,18 +49,38 @@
                 </div>
 
                 <div class="contact-menu">
-                    <button class="secondary-button" id="feedbackBtn" type="button" aria-expanded="false" aria-controls="contactPanel">
-                        <i data-lucide="message-circle"></i>
-                        <span>Contact</span>
+                    <button class="secondary-button menu-button" id="feedbackBtn" type="button" aria-expanded="false" aria-controls="contactPanel">
+                        <i data-lucide="menu"></i>
+                        <span>Menu</span>
+                        <i class="menu-chevron" data-lucide="chevron-down"></i>
                     </button>
                     <div class="contact-panel" id="contactPanel" hidden>
+                        <span class="menu-heading">Quick Actions</span>
+                        <button type="button" data-menu-action="home">
+                            <i data-lucide="home"></i>
+                            <span>Home</span>
+                        </button>
+                        <button type="button" data-menu-action="location">
+                            <i data-lucide="navigation"></i>
+                            <span>My Location</span>
+                        </button>
+                        <button type="button" data-menu-action="refresh">
+                            <i data-lucide="refresh-cw"></i>
+                            <span>Refresh</span>
+                        </button>
+
+                        <span class="menu-heading">Connect</span>
                         <a href="https://wa.me/918392045833" target="_blank" rel="noopener noreferrer">
                             <i data-lucide="send"></i>
                             <span>WhatsApp</span>
                         </a>
                         <a href="https://instagram.com/capture_withsusnata" target="_blank" rel="noopener noreferrer">
-                            <i data-lucide="instagram"></i>
+                            <i data-lucide="camera"></i>
                             <span>Instagram</span>
+                        </a>
+                        <a href="https://github.com/SUSNATACODES" target="_blank" rel="noopener noreferrer">
+                            <i data-lucide="code-2"></i>
+                            <span>Susnata Codes</span>
                         </a>
                     </div>
                 </div>

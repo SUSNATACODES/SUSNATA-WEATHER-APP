@@ -228,6 +228,8 @@ a {
 }
 
 .topbar {
+    position: relative;
+    z-index: 60;
     width: min(1180px, calc(100% - 32px));
     margin: 18px auto 0;
     display: flex;
@@ -382,6 +384,49 @@ a svg {
     border: 1px solid var(--line);
 }
 
+.menu-button {
+    position: relative;
+    overflow: hidden;
+    min-width: 126px;
+    color: #fff;
+    background:
+        linear-gradient(135deg, rgba(23, 33, 47, 0.95), rgba(15, 118, 110, 0.95)),
+        var(--ink);
+    border: 1px solid rgba(255, 255, 255, 0.44);
+    box-shadow: 0 14px 28px rgba(23, 33, 47, 0.18);
+}
+
+.menu-button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 0 34%, rgba(255, 255, 255, 0.28) 48%, transparent 60%);
+    transform: translateX(-120%);
+    animation: buttonShine 4.2s ease-in-out infinite;
+}
+
+.menu-button > * {
+    position: relative;
+    z-index: 1;
+}
+
+.menu-button:hover,
+.menu-button.is-open {
+    color: #fff;
+    border-color: rgba(15, 118, 110, 0.7);
+    box-shadow: 0 18px 34px rgba(15, 118, 110, 0.25);
+}
+
+.menu-button.is-open .menu-chevron {
+    transform: rotate(180deg);
+}
+
+.menu-chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform 180ms ease;
+}
+
 .segmented-control {
     display: inline-grid;
     grid-template-columns: repeat(2, 40px);
@@ -414,29 +459,57 @@ a svg {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    width: 184px;
-    padding: 8px;
-    background: var(--surface);
-    border: 1px solid var(--line);
+    width: 292px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(216, 224, 232, 0.95);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    z-index: 30;
+    box-shadow: 0 24px 54px rgba(23, 33, 47, 0.18);
+    backdrop-filter: blur(18px);
+    z-index: 80;
+    animation: menuDrop 180ms ease both;
 }
 
-.contact-panel a {
+.menu-heading {
+    display: block;
+    padding: 10px 10px 6px;
+    color: var(--teal);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.contact-panel a,
+.contact-panel button {
+    width: 100%;
+    min-height: 44px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 40px;
-    padding: 0 10px;
+    gap: 12px;
+    padding: 0 12px;
     border-radius: 6px;
     color: var(--ink);
+    background: transparent;
     font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.contact-panel a:hover {
+.contact-panel a:hover,
+.contact-panel button:hover {
     color: var(--teal);
     background: #edf8f6;
+    transform: translateX(3px);
+}
+
+.contact-panel a svg,
+.contact-panel button svg {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    color: var(--teal);
 }
 
 .dashboard {
@@ -722,6 +795,17 @@ h1 {
     }
     50% {
         box-shadow: 0 16px 34px rgba(15, 118, 110, 0.18);
+    }
+}
+
+@keyframes menuDrop {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
@@ -1139,13 +1223,13 @@ h1 {
     .topbar-actions {
         width: 100%;
         display: grid;
-        grid-template-columns: 44px 88px;
+        grid-template-columns: 44px 88px 1fr;
         justify-content: start;
         flex-wrap: initial;
     }
 
     .contact-menu {
-        grid-column: 1 / -1;
+        grid-column: auto;
         width: 100%;
         min-width: 0;
     }
@@ -1224,13 +1308,13 @@ h1 {
 
     .topbar-actions {
         display: grid;
-        grid-template-columns: 44px 88px;
+        grid-template-columns: 44px 88px 1fr;
         align-items: center;
         justify-content: start;
     }
 
     .contact-menu {
-        grid-column: 1 / -1;
+        grid-column: auto;
         min-width: 0;
     }
 
