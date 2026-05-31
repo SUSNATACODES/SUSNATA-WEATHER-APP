@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
+const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -29,6 +30,7 @@ app.set('trust proxy', 1);
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Oxygen-Weather-Version', APP_VERSION.slice(0, 12));
   next();
 });
 
@@ -37,6 +39,7 @@ app.use(express.json({ limit: '16kb' }));
 app.use(
   express.static(PUBLIC_DIR, {
     etag: true,
+    index: false,
     maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
   })
 );
@@ -44,6 +47,7 @@ app.use(
 app.get('/health', (req, res) => {
   res.json({
     ok: true,
+    version: APP_VERSION.slice(0, 12),
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });
@@ -202,6 +206,7 @@ app.get('/mail-alerts/unsubscribe', async (req, res) => {
 });
 
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
