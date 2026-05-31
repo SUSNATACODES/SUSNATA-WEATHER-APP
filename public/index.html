@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=header-blog-20260601">
+    <link rel="stylesheet" href="style.css?v=pro-redesign-20260601">
 </head>
 <body>
     <div class="weather-effects" aria-hidden="true">
@@ -110,9 +110,14 @@
 
         <main class="dashboard">
             <section class="search-toolbar" aria-labelledby="pageTitle">
-                <div>
+                <div class="search-title-block">
                     <p class="eyebrow">Live Conditions</p>
                     <h1 id="pageTitle">Oxygen Weather</h1>
+                    <div class="live-brief-pills" aria-label="Live weather status">
+                        <span><i data-lucide="radio"></i>Live Sync</span>
+                        <span><i data-lucide="clock-3"></i><span id="headerLocalTime">--:--</span></span>
+                        <span><i data-lucide="sparkles"></i><span id="headerWeatherMood">Sky Ready</span></span>
+                    </div>
                 </div>
 
                 <form class="search-form" id="weatherForm">
@@ -184,6 +189,10 @@
                         <p class="eyebrow" id="lastUpdated">Updated just now</p>
                         <h2 id="cityName">City</h2>
                         <p id="conditionText">Current conditions</p>
+                        <div class="current-live-row">
+                            <span id="localClock">--:--</span>
+                            <span id="weatherEnergy">Atmosphere syncing</span>
+                        </div>
                     </div>
 
                     <div class="temperature-block">
@@ -193,9 +202,28 @@
                             <span id="feelsLike">Feels like --</span>
                         </div>
                     </div>
+
+                    <div class="weather-orbit" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
                 </section>
 
+                <section class="insights-strip" id="insightsGrid" aria-label="Smart weather insights"></section>
+
                 <section class="metrics-grid" id="metricsGrid" aria-label="Weather metrics"></section>
+
+                <section class="hourly-section" id="hourlySection" aria-labelledby="hourlyTitle" hidden>
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Next Hours</p>
+                            <h2 id="hourlyTitle">Real-Time Outlook</h2>
+                        </div>
+                        <span id="hourlySignal">3-hour live feed</span>
+                    </div>
+                    <div class="hourly-grid" id="hourlyGrid"></div>
+                </section>
 
                 <section class="forecast-section" aria-labelledby="forecastTitle">
                     <div class="section-heading">
@@ -255,6 +283,6 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest" defer></script>
-    <script src="script.js?v=header-blog-20260601" defer></script>
+    <script src="script.js?v=pro-redesign-20260601" defer></script>
 </body>
 </html>

@@ -341,6 +341,7 @@ function buildWeatherPayload({ current, forecast, airQuality, resolvedLocation }
   const weather = current.weather?.[0] || {};
   const timezoneOffset = Number(current.timezone || 0);
   const dailyForecast = buildDailyForecast(forecast.list || [], timezoneOffset);
+  const hourlyForecast = buildHourlyForecast(forecast.list || [], timezoneOffset);
 
   return {
     location: {
@@ -378,6 +379,7 @@ function buildWeatherPayload({ current, forecast, airQuality, resolvedLocation }
       snowVolume: current.snow?.['1h'] || current.snow?.['3h'] || 0,
     },
     forecast: dailyForecast,
+    hourly: hourlyForecast,
     airQuality: buildAirQuality(airQuality),
     meta: {
       source: 'OpenWeather',
@@ -385,6 +387,33 @@ function buildWeatherPayload({ current, forecast, airQuality, resolvedLocation }
       fromCache: false,
     },
   };
+}
+
+function buildHourlyForecast(list, timezoneOffset) {
+  return list
+    .filter((item) => Number.isFinite(item.dt))
+    .slice(0, 8)
+    .map((item) => {
+      const weather = item.weather?.[0] || {};
+
+      return {
+        timestamp: item.dt,
+        localHour: getLocalHour(item.dt, timezoneOffset),
+        date: getLocalDateKey(item.dt, timezoneOffset),
+        condition: {
+          main: weather.main || 'Weather',
+          description: toTitleCase(weather.description || 'Forecast'),
+          icon: weather.icon,
+        },
+        temperature: round(item.main?.temp),
+        feelsLike: round(item.main?.feels_like),
+        humidity: item.main?.humidity,
+        windSpeed: round(item.wind?.speed),
+        precipitationProbability: Math.round(Number(item.pop || 0) * 100),
+        rainVolume: round(item.rain?.['3h'] || 0),
+        snowVolume: round(item.snow?.['3h'] || 0),
+      };
+    });
 }
 
 function buildDailyForecast(list, timezoneOffset) {

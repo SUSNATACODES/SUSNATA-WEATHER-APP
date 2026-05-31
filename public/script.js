@@ -7,6 +7,7 @@ const state = {
     weather: null,
     recentSearches: loadRecentSearches(),
     loginEmail: localStorage.getItem(LOGIN_EMAIL_KEY) || '',
+    clockTimer: null,
     lastRequest: {
         params: { city: DEFAULT_CITY },
         label: DEFAULT_CITY,
@@ -42,6 +43,8 @@ const dom = {
     earthquakeOverlay: document.getElementById('earthquakeOverlay'),
     earthquakeFrame: document.getElementById('earthquakeFrame'),
     earthquakeCloseBtn: document.getElementById('earthquakeCloseBtn'),
+    headerLocalTime: document.getElementById('headerLocalTime'),
+    headerWeatherMood: document.getElementById('headerWeatherMood'),
     weatherDashboard: document.getElementById('weatherDashboard'),
     recentSearches: document.getElementById('recentSearches'),
     cityName: document.getElementById('cityName'),
@@ -50,7 +53,13 @@ const dom = {
     feelsLike: document.getElementById('feelsLike'),
     weatherIcon: document.getElementById('weatherIcon'),
     lastUpdated: document.getElementById('lastUpdated'),
+    localClock: document.getElementById('localClock'),
+    weatherEnergy: document.getElementById('weatherEnergy'),
+    insightsGrid: document.getElementById('insightsGrid'),
     metricsGrid: document.getElementById('metricsGrid'),
+    hourlySection: document.getElementById('hourlySection'),
+    hourlyGrid: document.getElementById('hourlyGrid'),
+    hourlySignal: document.getElementById('hourlySignal'),
     forecastSource: document.getElementById('forecastSource'),
     forecastGrid: document.getElementById('forecastGrid'),
     airSection: document.getElementById('airSection'),
@@ -534,14 +543,17 @@ function renderWeather(data) {
     if (!dom.alertCity.value.trim()) {
         dom.alertCity.placeholder = `Alert city (${locationLabel})`;
     }
-    document.body.dataset.weather = getWeatherMood(current.condition.main);
+    updateWeatherAtmosphere(data);
+    startLocalClock(data.location.timezoneOffset || 0);
 
     if (weatherIcon) {
         dom.weatherIcon.src = weatherIcon;
         dom.weatherIcon.alt = current.condition.description;
     }
 
+    renderSmartInsights(data);
     renderMetrics(data);
+    renderHourly(data.hourly || [], data.location.timezoneOffset || 0);
     renderForecast(data.forecast || []);
     renderAirQuality(data.airQuality);
     updateUnitButtons();
@@ -623,6 +635,85 @@ function renderMetrics(data) {
                         <div class="metric-value">${escapeHtml(metric.value)}</div>
                         <div class="metric-note">${escapeHtml(metric.note)}</div>
                     </div>
+                </article>
+            `;
+        })
+        .join('');
+}
+
+function renderSmartInsights(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const airQuality = data.airQuality;
+    const comfortScore = getComfortScore(current, airQuality);
+    const rainChance = Number(today.precipitationProbability || 0);
+    const windKmh = Number.isFinite(current.windSpeed) ? Math.round(current.windSpeed * 3.6) : null;
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : null;
+    const insights = [
+        {
+            icon: 'activity',
+            label: 'Comfort Index',
+            value: `${comfortScore}/100`,
+            note: getComfortLabel(comfortScore),
+            tone: comfortScore >= 75 ? 'good' : comfortScore >= 50 ? 'watch' : 'alert',
+        },
+        {
+            icon: 'cloud-rain',
+            label: 'Rain Signal',
+            value: formatPercent(rainChance),
+            note: getRainSignal(rainChance, today.rainVolume),
+            tone: rainChance >= 75 ? 'alert' : rainChance >= 45 ? 'watch' : 'good',
+        },
+        {
+            icon: 'wind',
+            label: 'Wind Flow',
+            value: windKmh === null ? '--' : `${windKmh} km/h`,
+            note: getWindSignal(current.windSpeed),
+            tone: Number(current.windSpeed || 0) >= 10 ? 'watch' : 'good',
+        },
+        {
+            icon: airQuality?.aqi >= 4 ? 'shield-alert' : 'sparkles',
+            label: 'Air & View',
+            value: airQuality ? airQuality.label : formatVisibility(current.visibility),
+            note: visibilityKm !== null ? `${visibilityKm.toFixed(visibilityKm >= 10 ? 0 : 1)} km visibility` : 'Visibility unavailable',
+            tone: airQuality?.aqi >= 4 || (visibilityKm !== null && visibilityKm < 2) ? 'alert' : 'good',
+        },
+    ];
+
+    dom.insightsGrid.innerHTML = insights
+        .map((insight) => {
+            return `
+                <article class="insight-card is-${escapeHtml(insight.tone)}">
+                    <div class="insight-icon"><i data-lucide="${escapeHtml(insight.icon)}" aria-hidden="true"></i></div>
+                    <div>
+                        <span>${escapeHtml(insight.label)}</span>
+                        <strong>${escapeHtml(insight.value)}</strong>
+                        <p>${escapeHtml(insight.note)}</p>
+                    </div>
+                </article>
+            `;
+        })
+        .join('');
+}
+
+function renderHourly(hourly, timezoneOffset) {
+    if (!hourly.length) {
+        dom.hourlySection.hidden = true;
+        dom.hourlyGrid.innerHTML = '';
+        return;
+    }
+
+    dom.hourlySection.hidden = false;
+    dom.hourlySignal.textContent = `${hourly.length} live slots`;
+    dom.hourlyGrid.innerHTML = hourly
+        .map((slot, index) => {
+            const iconUrl = getWeatherIconUrl(slot.condition.icon);
+            return `
+                <article class="hourly-card" style="--delay:${index * 70}ms">
+                    <span>${escapeHtml(formatLocalTime(slot.timestamp, timezoneOffset))}</span>
+                    ${iconUrl ? `<img src="${iconUrl}" alt="${escapeHtml(slot.condition.description)}">` : ''}
+                    <strong>${escapeHtml(formatTemperature(slot.temperature))}</strong>
+                    <p>${escapeHtml(formatPercent(slot.precipitationProbability))} rain</p>
                 </article>
             `;
         })
@@ -765,6 +856,154 @@ function updateUnitButtons() {
     dom.unitButtons.forEach((button) => {
         button.classList.toggle('is-active', button.dataset.unit === state.unit);
     });
+}
+
+function startLocalClock(timezoneOffset) {
+    if (state.clockTimer) {
+        window.clearInterval(state.clockTimer);
+    }
+
+    const updateClock = () => {
+        const nowSeconds = Date.now() / 1000;
+        const label = formatLocalTime(nowSeconds, timezoneOffset);
+        dom.localClock.textContent = `Local ${label}`;
+        dom.headerLocalTime.textContent = label;
+    };
+
+    updateClock();
+    state.clockTimer = window.setInterval(updateClock, 30 * 1000);
+}
+
+function updateWeatherAtmosphere(data) {
+    const current = data.current;
+    const mood = getWeatherMood(current.condition.main);
+    const accent = getWeatherAccent(mood);
+    const energy = getWeatherEnergy(data);
+
+    document.body.dataset.weather = mood;
+    document.body.style.setProperty('--weather-accent', accent.accent);
+    document.body.style.setProperty('--weather-accent-2', accent.secondary);
+    document.body.style.setProperty('--weather-glow', accent.glow);
+    document.body.style.setProperty('--weather-panel', accent.panel);
+    dom.weatherEnergy.textContent = energy;
+    dom.headerWeatherMood.textContent = getWeatherMoodLabel(mood);
+}
+
+function getWeatherAccent(mood) {
+    const accents = {
+        clear: {
+            accent: '#d97706',
+            secondary: '#0f766e',
+            glow: 'rgba(217, 119, 6, 0.28)',
+            panel: 'rgba(255, 247, 237, 0.9)',
+        },
+        rain: {
+            accent: '#2563eb',
+            secondary: '#0f766e',
+            glow: 'rgba(37, 99, 235, 0.28)',
+            panel: 'rgba(239, 246, 255, 0.92)',
+        },
+        storm: {
+            accent: '#7c3aed',
+            secondary: '#dc4a36',
+            glow: 'rgba(124, 58, 237, 0.3)',
+            panel: 'rgba(245, 243, 255, 0.92)',
+        },
+        snow: {
+            accent: '#0891b2',
+            secondary: '#2563eb',
+            glow: 'rgba(8, 145, 178, 0.25)',
+            panel: 'rgba(236, 254, 255, 0.92)',
+        },
+        mist: {
+            accent: '#64748b',
+            secondary: '#0f766e',
+            glow: 'rgba(100, 116, 139, 0.22)',
+            panel: 'rgba(248, 250, 252, 0.92)',
+        },
+        clouds: {
+            accent: '#0f766e',
+            secondary: '#2563eb',
+            glow: 'rgba(15, 118, 110, 0.24)',
+            panel: 'rgba(240, 253, 250, 0.92)',
+        },
+    };
+
+    return accents[mood] || accents.clouds;
+}
+
+function getWeatherMoodLabel(mood) {
+    const labels = {
+        clear: 'Clear mode',
+        rain: 'Rain watch',
+        storm: 'Storm watch',
+        snow: 'Snow mode',
+        mist: 'Low visibility',
+        clouds: 'Cloud sync',
+    };
+
+    return labels[mood] || 'Sky sync';
+}
+
+function getWeatherEnergy(data) {
+    const current = data.current;
+    const rainChance = Number(data.forecast?.[0]?.precipitationProbability || 0);
+    const windSpeed = Number(current.windSpeed || 0);
+    const condition = String(current.condition.main || '').toLowerCase();
+
+    if (condition.includes('thunder')) return 'High energy storm field';
+    if (rainChance >= 75) return 'Rain system building';
+    if (windSpeed >= 10) return 'Fast wind movement';
+    if (condition.includes('clear')) return 'Calm clear sky';
+    if (condition.includes('mist') || condition.includes('fog') || condition.includes('haze')) return 'Visibility watch active';
+    return 'Atmosphere stable';
+}
+
+function getComfortScore(current, airQuality) {
+    let score = 100;
+    const temp = Number(current.temperature);
+    const humidity = Number(current.humidity);
+    const windSpeed = Number(current.windSpeed);
+
+    if (Number.isFinite(temp)) {
+        score -= Math.min(28, Math.abs(temp - 24) * 2.2);
+    }
+
+    if (Number.isFinite(humidity)) {
+        score -= Math.min(18, Math.abs(humidity - 55) * 0.35);
+    }
+
+    if (Number.isFinite(windSpeed) && windSpeed > 8) {
+        score -= Math.min(16, (windSpeed - 8) * 2);
+    }
+
+    if (airQuality?.aqi >= 4) {
+        score -= airQuality.aqi === 5 ? 24 : 16;
+    }
+
+    return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function getComfortLabel(score) {
+    if (score >= 82) return 'Excellent outdoor feel';
+    if (score >= 65) return 'Comfortable conditions';
+    if (score >= 45) return 'Manageable, stay aware';
+    return 'Use caution outside';
+}
+
+function getRainSignal(probability, volume) {
+    const rainVolume = Number(volume || 0);
+    if (probability >= 80 && rainVolume >= 8) return 'Heavy rain possible';
+    if (probability >= 60) return 'Carry an umbrella';
+    if (probability >= 35) return 'Scattered rain chance';
+    return 'Low rain signal';
+}
+
+function getWindSignal(speed) {
+    const value = Number(speed || 0);
+    if (value >= 13.9) return 'Strong wind alert';
+    if (value >= 8) return 'Breezy movement';
+    return 'Smooth airflow';
 }
 
 function getUpdatedLabel(data) {
