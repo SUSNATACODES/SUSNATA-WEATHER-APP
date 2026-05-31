@@ -68,6 +68,10 @@
                             <i data-lucide="refresh-cw"></i>
                             <span>Refresh</span>
                         </button>
+                        <button type="button" data-menu-action="mail">
+                            <i data-lucide="mail-check"></i>
+                            <span>Mail Alerts</span>
+                        </button>
 
                         <span class="menu-heading">Connect</span>
                         <a href="https://wa.me/918392045833" target="_blank" rel="noopener noreferrer">
@@ -118,6 +122,43 @@
             <section class="loading-panel" id="loading" aria-live="polite" hidden>
                 <div class="loader" aria-hidden="true"></div>
                 <span>Fetching weather data</span>
+            </section>
+
+            <section class="mail-alerts-panel" id="mailAlertsPanel" aria-labelledby="mailAlertsTitle">
+                <div class="mail-alerts-copy">
+                    <p class="eyebrow">Gmail Reminder</p>
+                    <h2 id="mailAlertsTitle">Weather Mail Alerts</h2>
+                    <div class="mail-alerts-meta" aria-label="Mail alert behavior">
+                        <span><i data-lucide="shield-alert"></i>Urgent only</span>
+                        <span><i data-lucide="clock-3"></i>12:00 AM report</span>
+                        <span><i data-lucide="ban"></i>No spam</span>
+                    </div>
+                </div>
+
+                <form class="mail-alerts-form" id="mailAlertsForm">
+                    <label class="sr-only" for="alertEmail">Email address for weather alerts</label>
+                    <div class="input-control">
+                        <i data-lucide="mail" aria-hidden="true"></i>
+                        <input id="alertEmail" name="email" type="email" autocomplete="email" placeholder="Gmail address">
+                    </div>
+
+                    <label class="sr-only" for="alertCity">City for weather alerts</label>
+                    <div class="input-control">
+                        <i data-lucide="map-pin" aria-hidden="true"></i>
+                        <input id="alertCity" name="city" type="text" autocomplete="address-level2" placeholder="Alert city">
+                    </div>
+
+                    <button class="secondary-button" id="useCurrentWeatherForMail" type="button">
+                        <i data-lucide="crosshair"></i>
+                        <span>Current</span>
+                    </button>
+                    <button class="primary-button" id="mailAlertsSubmit" type="submit">
+                        <i data-lucide="bell-plus"></i>
+                        <span>Enable Mail</span>
+                    </button>
+
+                    <p class="mail-alerts-status" id="mailAlertsStatus" role="status" hidden></p>
+                </form>
             </section>
 
             <section class="weather-dashboard" id="weatherDashboard" hidden>

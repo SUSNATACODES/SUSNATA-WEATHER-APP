@@ -10,6 +10,18 @@ services:
     envVars:
       - key: API_KEY
         sync: false
+      - key: APP_BASE_URL
+        value: https://susnata-weather-app-oeqt.onrender.com
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 465
     autoDeploy: true
     domains:
       - susnatacode.com

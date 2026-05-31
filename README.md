@@ -14,6 +14,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Air quality panel when provider data is available
 - Celsius/Fahrenheit unit switching without extra API calls
 - Recent searches stored in the browser
+- Gmail/SMTP weather reminders with important alerts, one 12:00 AM daily report, and unsubscribe links
 - Server-side caching, request timeouts, and cleaner API errors
 - Render deployment support
 
@@ -38,7 +39,20 @@ cp .env.example .env
 ```env
 API_KEY=your_openweather_api_key_here
 PORT=3000
+APP_BASE_URL=http://localhost:3000
 ```
+
+Optional Gmail delivery for mail alerts:
+
+```env
+MAIL_USER=your_gmail_address@gmail.com
+MAIL_PASS=your_gmail_app_password
+MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=465
+```
+
+For Gmail, create an app password in your Google account and use that as `MAIL_PASS`.
 
 5. Start the server:
 
@@ -50,10 +64,16 @@ npm start
 
 ## Render Deployment
 
-The repository includes `render.yaml`. In Render, keep `rootDir` set to `WeatherServer`, then add the environment variable:
+The repository includes `render.yaml`. In Render, keep `rootDir` set to `WeatherServer`, then add the environment variables:
 
 ```env
 API_KEY=your_openweather_api_key_here
+APP_BASE_URL=https://susnata-weather-app-oeqt.onrender.com
+MAIL_USER=your_gmail_address@gmail.com
+MAIL_PASS=your_gmail_app_password
+MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=465
 ```
 
 Render will run:

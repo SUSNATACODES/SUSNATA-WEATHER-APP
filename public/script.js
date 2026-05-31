@@ -9,6 +9,7 @@ const state = {
         params: { city: DEFAULT_CITY },
         label: DEFAULT_CITY,
     },
+    mailLocation: null,
 };
 
 const dom = {
@@ -22,6 +23,13 @@ const dom = {
     contactPanel: document.getElementById('contactPanel'),
     statusMessage: document.getElementById('statusMessage'),
     loading: document.getElementById('loading'),
+    mailAlertsPanel: document.getElementById('mailAlertsPanel'),
+    mailAlertsForm: document.getElementById('mailAlertsForm'),
+    alertEmail: document.getElementById('alertEmail'),
+    alertCity: document.getElementById('alertCity'),
+    useCurrentWeatherForMail: document.getElementById('useCurrentWeatherForMail'),
+    mailAlertsSubmit: document.getElementById('mailAlertsSubmit'),
+    mailAlertsStatus: document.getElementById('mailAlertsStatus'),
     weatherDashboard: document.getElementById('weatherDashboard'),
     recentSearches: document.getElementById('recentSearches'),
     cityName: document.getElementById('cityName'),
@@ -71,6 +79,19 @@ function wireEvents() {
         useCurrentLocation();
     });
 
+    dom.mailAlertsForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        subscribeMailAlerts();
+    });
+
+    dom.useCurrentWeatherForMail.addEventListener('click', () => {
+        fillMailLocationFromCurrentWeather();
+    });
+
+    dom.alertCity.addEventListener('input', () => {
+        state.mailLocation = null;
+    });
+
     dom.refreshBtn.addEventListener('click', () => {
         refreshWeather();
     });
@@ -112,6 +133,10 @@ function wireEvents() {
             if (action === 'refresh') {
                 refreshWeather();
             }
+
+            if (action === 'mail') {
+                focusMailAlerts();
+            }
         });
     });
 
@@ -143,6 +168,124 @@ function closeMenu() {
     dom.contactPanel.hidden = true;
     dom.feedbackBtn.setAttribute('aria-expanded', 'false');
     dom.feedbackBtn.classList.remove('is-open');
+}
+
+function focusMailAlerts() {
+    dom.mailAlertsPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+        dom.alertEmail.focus({ preventScroll: true });
+    }, 320);
+}
+
+function fillMailLocationFromCurrentWeather() {
+    if (!state.weather) {
+        showMailAlertsStatus('Load weather first, then choose the alert location.', 'error');
+        return;
+    }
+
+    const locationLabel = formatLocation(state.weather.location);
+    state.mailLocation = {
+        label: locationLabel,
+        params: {
+            ...state.lastRequest.params,
+        },
+    };
+    dom.alertCity.value = locationLabel;
+    showMailAlertsStatus(`Mail location set to ${locationLabel}.`, 'success');
+}
+
+async function subscribeMailAlerts() {
+    const email = dom.alertEmail.value.trim();
+    const locationRequest = getMailAlertLocationRequest();
+
+    if (!email || !dom.alertEmail.checkValidity()) {
+        showMailAlertsStatus('Enter a valid email address.', 'error');
+        dom.alertEmail.focus();
+        return;
+    }
+
+    setMailAlertsBusy(true);
+    showMailAlertsStatus('Saving mail alerts.', 'info');
+
+    try {
+        const response = await fetch('/mail-alerts/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email,
+                ...locationRequest.params,
+            }),
+        });
+        const data = await response.json().catch(() => ({
+            error: 'The server returned an unexpected mail response.',
+        }));
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Mail alerts could not be enabled.');
+        }
+
+        const tone = data.mailConfigured ? 'success' : 'info';
+        showMailAlertsStatus(data.message || `Mail alerts enabled for ${locationRequest.label}.`, tone);
+    } catch (error) {
+        showMailAlertsStatus(error.message || 'Mail alerts could not be enabled.', 'error');
+    } finally {
+        setMailAlertsBusy(false);
+    }
+}
+
+function getMailAlertLocationRequest() {
+    const city = dom.alertCity.value.trim().replace(/\s+/g, ' ');
+
+    if (
+        state.mailLocation &&
+        city &&
+        city.toLowerCase() === state.mailLocation.label.toLowerCase()
+    ) {
+        return {
+            label: state.mailLocation.label,
+            params: state.mailLocation.params,
+        };
+    }
+
+    if (city) {
+        return {
+            label: city,
+            params: { city },
+        };
+    }
+
+    if (state.weather?.location?.coordinates) {
+        const coordinates = state.weather.location.coordinates;
+        return {
+            label: formatLocation(state.weather.location),
+            params: {
+                lat: coordinates.lat,
+                lon: coordinates.lon,
+            },
+        };
+    }
+
+    return {
+        label: DEFAULT_CITY,
+        params: { city: DEFAULT_CITY },
+    };
+}
+
+function setMailAlertsBusy(isBusy) {
+    dom.mailAlertsForm.classList.toggle('is-busy', isBusy);
+    [dom.alertEmail, dom.alertCity, dom.useCurrentWeatherForMail, dom.mailAlertsSubmit].forEach((element) => {
+        element.disabled = isBusy;
+    });
+}
+
+function showMailAlertsStatus(message, tone = 'info') {
+    dom.mailAlertsStatus.textContent = message;
+    dom.mailAlertsStatus.classList.toggle('is-success', tone === 'success');
+    dom.mailAlertsStatus.classList.toggle('is-error', tone === 'error');
+    dom.mailAlertsStatus.classList.toggle('is-info', tone === 'info');
+    dom.mailAlertsStatus.hidden = false;
 }
 
 async function loadWeather(params, options = {}) {
@@ -257,6 +400,9 @@ function renderWeather(data) {
     dom.feelsLike.textContent = `Feels like ${formatTemperature(current.feelsLike)}`;
     dom.lastUpdated.textContent = getUpdatedLabel(data);
     dom.forecastSource.textContent = data.meta?.source || 'Weather provider';
+    if (!dom.alertCity.value.trim()) {
+        dom.alertCity.placeholder = `Alert city (${locationLabel})`;
+    }
     document.body.dataset.weather = getWeatherMood(current.condition.main);
 
     if (weatherIcon) {
