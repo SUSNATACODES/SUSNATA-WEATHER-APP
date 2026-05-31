@@ -11,6 +11,23 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="weather-effects" aria-hidden="true">
+        <div class="sky-ribbon ribbon-one"></div>
+        <div class="sky-ribbon ribbon-two"></div>
+        <div class="storm-flash"></div>
+        <div class="rain-field rain-field-one"></div>
+        <div class="rain-field rain-field-two"></div>
+        <div class="wind-streams">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="float-icon float-cloud"><i data-lucide="cloud-sun"></i></div>
+        <div class="float-icon float-rain"><i data-lucide="cloud-rain"></i></div>
+        <div class="float-icon float-bolt"><i data-lucide="cloud-lightning"></i></div>
+    </div>
+
     <div class="app-shell">
         <header class="topbar">
             <button class="brand-button" id="homeBtn" type="button" aria-label="Oxygen Weather home">
@@ -125,8 +142,15 @@
         </main>
 
         <footer class="site-footer">
-            <span>&copy; 2026 Susnata Biswas. All rights reserved.</span>
-            <span>Data powered by OpenWeather.</span>
+            <div class="footer-copy">
+                <span>&copy; 2026 Susnata Biswas. All rights reserved.</span>
+                <span>Data powered by OpenWeather.</span>
+            </div>
+            <a class="susnata-codes-link" href="https://github.com/SUSNATACODES" target="_blank" rel="noopener noreferrer">
+                <i data-lucide="code-2" aria-hidden="true"></i>
+                <span>SUSNATA CODES</span>
+                <i data-lucide="external-link" aria-hidden="true"></i>
+            </a>
         </footer>
     </div>
 

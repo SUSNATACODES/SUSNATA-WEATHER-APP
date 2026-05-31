@@ -183,6 +183,7 @@ function renderWeather(data) {
     dom.feelsLike.textContent = `Feels like ${formatTemperature(current.feelsLike)}`;
     dom.lastUpdated.textContent = getUpdatedLabel(data);
     dom.forecastSource.textContent = data.meta?.source || 'Weather provider';
+    document.body.dataset.weather = getWeatherMood(current.condition.main);
 
     if (weatherIcon) {
         dom.weatherIcon.src = weatherIcon;
@@ -513,6 +514,17 @@ function getPressureLabel(value) {
 function getWeatherIconUrl(code) {
     if (!code) return '';
     return `https://openweathermap.org/img/wn/${encodeURIComponent(code)}@2x.png`;
+}
+
+function getWeatherMood(condition) {
+    const value = String(condition || '').toLowerCase();
+
+    if (value.includes('thunder')) return 'storm';
+    if (value.includes('rain') || value.includes('drizzle')) return 'rain';
+    if (value.includes('snow')) return 'snow';
+    if (value.includes('clear')) return 'clear';
+    if (value.includes('mist') || value.includes('haze') || value.includes('fog')) return 'mist';
+    return 'clouds';
 }
 
 function renderIcons() {
