@@ -236,8 +236,9 @@ a {
 }
 
 .topbar {
-    position: relative;
-    z-index: 60;
+    position: sticky;
+    top: 12px;
+    z-index: 100;
     width: min(1180px, calc(100% - 32px));
     margin: 18px auto 0;
     display: flex;
@@ -245,11 +246,11 @@ a {
     justify-content: space-between;
     gap: 16px;
     padding: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(216, 224, 232, 0.88);
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(216, 224, 232, 0.72);
     border-radius: var(--radius);
     box-shadow: 0 8px 26px rgba(23, 33, 47, 0.08);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(20px);
     animation: riseIn 520ms ease both;
 }
 
@@ -315,6 +316,7 @@ a svg {
 .icon-button,
 .primary-button,
 .secondary-button,
+.header-blog-link,
 .unit-button,
 .recent-chip {
     min-height: 44px;
@@ -326,6 +328,7 @@ a svg {
 .icon-button:hover,
 .primary-button:hover,
 .secondary-button:hover,
+.header-blog-link:hover,
 .unit-button:hover,
 .recent-chip:hover,
 .susnata-codes-link:hover {
@@ -392,23 +395,43 @@ a svg {
     border: 1px solid var(--line);
 }
 
+.header-blog-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 14px;
+    color: var(--teal-dark);
+    background: rgba(255, 255, 255, 0.34);
+    border: 1px solid rgba(15, 118, 110, 0.24);
+    font-size: 0.82rem;
+    font-weight: 900;
+    white-space: nowrap;
+    box-shadow: 0 12px 24px rgba(23, 33, 47, 0.08);
+}
+
+.header-blog-link:hover {
+    color: #fff;
+    background: rgba(15, 118, 110, 0.82);
+    border-color: rgba(15, 118, 110, 0.72);
+}
+
 .menu-button {
     position: relative;
     overflow: hidden;
     min-width: 126px;
-    color: #fff;
-    background:
-        linear-gradient(135deg, rgba(23, 33, 47, 0.95), rgba(15, 118, 110, 0.95)),
-        var(--ink);
-    border: 1px solid rgba(255, 255, 255, 0.44);
-    box-shadow: 0 14px 28px rgba(23, 33, 47, 0.18);
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(15, 118, 110, 0.28);
+    box-shadow: 0 14px 28px rgba(23, 33, 47, 0.1);
+    backdrop-filter: blur(14px);
 }
 
 .menu-button::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(110deg, transparent 0 34%, rgba(255, 255, 255, 0.28) 48%, transparent 60%);
+    background: linear-gradient(110deg, transparent 0 34%, rgba(15, 118, 110, 0.16) 48%, transparent 60%);
     transform: translateX(-120%);
     animation: buttonShine 4.2s ease-in-out infinite;
 }
@@ -420,7 +443,8 @@ a svg {
 
 .menu-button:hover,
 .menu-button.is-open {
-    color: #fff;
+    color: var(--teal-dark);
+    background: rgba(255, 255, 255, 0.48);
     border-color: rgba(15, 118, 110, 0.7);
     box-shadow: 0 18px 34px rgba(15, 118, 110, 0.25);
 }
@@ -1477,7 +1501,7 @@ h1 {
     .topbar-actions {
         width: 100%;
         display: grid;
-        grid-template-columns: 44px 44px 88px minmax(0, 1fr);
+        grid-template-columns: 44px 44px 88px minmax(44px, 0.72fr) minmax(0, 1fr);
         justify-content: start;
         flex-wrap: initial;
     }
@@ -1490,6 +1514,15 @@ h1 {
 
     .menu-button {
         min-width: 0;
+    }
+
+    .header-blog-link {
+        width: 100%;
+        padding: 0;
+    }
+
+    .header-blog-link span {
+        display: none;
     }
 
     .segmented-control {
@@ -1571,7 +1604,7 @@ h1 {
 
     .topbar-actions {
         display: grid;
-        grid-template-columns: 44px 44px 88px minmax(0, 1fr);
+        grid-template-columns: 44px 44px 88px 44px minmax(0, 1fr);
         align-items: center;
         justify-content: start;
     }
