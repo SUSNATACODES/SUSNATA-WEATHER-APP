@@ -1,4 +1,4 @@
-const DEFAULT_CITY = 'Kolkata';
+const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
 
 const state = {
@@ -44,8 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
     wireEvents();
     renderRecentSearches();
     renderIcons();
-    loadWeather({ city: DEFAULT_CITY }, { label: DEFAULT_CITY, saveRecent: false });
+    initializeWeather();
 });
+
+async function initializeWeather() {
+    const detectedLocation = await tryAutoLocationWeather();
+
+    if (!detectedLocation) {
+        loadWeather({ city: DEFAULT_CITY }, { label: DEFAULT_CITY, saveRecent: false });
+    }
+}
 
 function wireEvents() {
     dom.weatherForm.addEventListener('submit', (event) => {
@@ -129,14 +137,54 @@ async function loadWeather(params, options = {}) {
         if (options.saveRecent) {
             saveRecentSearch(formatLocation(data.location));
         }
+
+        if (options.successMessage) {
+            showTemporaryStatus(options.successMessage, 'success');
+        }
+
+        return true;
     } catch (error) {
         showStatus(error.message || 'Weather data could not be loaded.');
+        return false;
     } finally {
         setBusy(false);
     }
 }
 
-function useCurrentLocation() {
+async function tryAutoLocationWeather() {
+    if (!navigator.geolocation) {
+        return false;
+    }
+
+    const permissionState = await getLocationPermissionState();
+    if (permissionState !== 'granted') {
+        return false;
+    }
+
+    setBusy(true);
+    showStatus('Detecting your location automatically.', 'success');
+
+    try {
+        const position = await getBrowserPosition({
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 10 * 60 * 1000,
+        });
+
+        return await loadWeather(getPositionParams(position), {
+            label: 'Current location',
+            saveRecent: false,
+            successMessage: 'Showing weather for your current location.',
+        });
+    } catch {
+        hideStatus();
+        return false;
+    } finally {
+        setBusy(false);
+    }
+}
+
+async function useCurrentLocation() {
     if (!navigator.geolocation) {
         showStatus('Location is not available in this browser.');
         return;
@@ -145,30 +193,22 @@ function useCurrentLocation() {
     setBusy(true);
     showStatus('Waiting for location permission.', 'success');
 
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const { latitude, longitude } = position.coords;
-            loadWeather(
-                {
-                    lat: latitude.toFixed(4),
-                    lon: longitude.toFixed(4),
-                },
-                {
-                    label: 'Current location',
-                    saveRecent: false,
-                }
-            );
-        },
-        () => {
-            setBusy(false);
-            showStatus('Location permission was not granted.');
-        },
-        {
+    try {
+        const position = await getBrowserPosition({
             enableHighAccuracy: true,
             timeout: 10000,
             maximumAge: 10 * 60 * 1000,
-        }
-    );
+        });
+
+        await loadWeather(getPositionParams(position), {
+            label: 'Current location',
+            saveRecent: false,
+            successMessage: 'Showing weather for your current location.',
+        });
+    } catch (error) {
+        setBusy(false);
+        showStatus(getLocationErrorMessage(error));
+    }
 }
 
 function renderWeather(data) {
@@ -395,6 +435,15 @@ function showStatus(message, tone = 'error') {
     dom.statusMessage.hidden = false;
 }
 
+function showTemporaryStatus(message, tone = 'success') {
+    showStatus(message, tone);
+    window.setTimeout(() => {
+        if (dom.statusMessage.textContent === message) {
+            hideStatus();
+        }
+    }, 3500);
+}
+
 function hideStatus() {
     dom.statusMessage.hidden = true;
     dom.statusMessage.textContent = '';
@@ -514,6 +563,50 @@ function getPressureLabel(value) {
 function getWeatherIconUrl(code) {
     if (!code) return '';
     return `https://openweathermap.org/img/wn/${encodeURIComponent(code)}@2x.png`;
+}
+
+async function getLocationPermissionState() {
+    if (!navigator.permissions?.query) {
+        return 'prompt';
+    }
+
+    try {
+        const permission = await navigator.permissions.query({ name: 'geolocation' });
+        return permission.state;
+    } catch {
+        return 'prompt';
+    }
+}
+
+function getBrowserPosition(options) {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+}
+
+function getPositionParams(position) {
+    const { latitude, longitude } = position.coords;
+
+    return {
+        lat: latitude.toFixed(4),
+        lon: longitude.toFixed(4),
+    };
+}
+
+function getLocationErrorMessage(error) {
+    if (error?.code === 1) {
+        return 'Location permission was not granted. Enable location access in your browser to use automatic local weather.';
+    }
+
+    if (error?.code === 2) {
+        return 'Your location could not be detected right now. Please search by city.';
+    }
+
+    if (error?.code === 3) {
+        return 'Location detection timed out. Please try again or search by city.';
+    }
+
+    return 'Location could not be detected. Please search by city.';
 }
 
 function getWeatherMood(condition) {
