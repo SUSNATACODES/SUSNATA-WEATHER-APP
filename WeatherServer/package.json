@@ -4,11 +4,15 @@
   "description": "Professional weather app by Susnata Biswas",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "axios": "^1.7.0",
+    "axios": "^1.16.1",
     "dotenv": "^17.2.2",
-    "express": "^4.18.2"
+    "express": "^4.22.2"
   }
 }

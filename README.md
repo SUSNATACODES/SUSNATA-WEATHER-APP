@@ -1,81 +1,83 @@
-# Susnata Weather App 🌤️
+# Susnata Weather App
 
-A simple weather app that shows the **current weather** for any city.  
-Built with **HTML, CSS, JavaScript (frontend)** and **Node.js + Express (backend)**, using the **OpenWeather API** for live data.  
-This project can also be deployed easily on **Render.com** using `render.yaml`.
-
----
-
-## 🚀 How to Run Locally
-
-1. **Clone this repository:**
-   ```bash
-   git clone https://github.com/susnatacodes/susnata-weather-app.git
-
-2. Go to `WeatherServer/`
-3. Run `npm install`
-4. Create a `.env` file in `WeatherServer/`:
-
-    ```
-    OPENWEATHER_API_KEY=your_api_key_here
-    PORT=3000
-    ```
-
-5. Start the server:
-    ```
-    npm start
-    ```
-
-6. Open your browser and go to `http://localhost:3000`
-
-## How to Deploy on Render.com
-
-Ensure you have render.yaml in your project root. Example content:
-services:
-  - type: web
-    name: susnata-weather-app
-    env: node
-    buildCommand: npm install
-    startCommand: node WeatherServer/index.js
-    plan: free
-    autoDeploy: true
-
-Push your code to GitHub.
-Connect your repository to Render.com.
-Render will automatically detect render.yaml and deploy your app.
-Your live app URL will be similar to:
-https://susnata-weather-app.onrender.com
-
-## 📦 Project Structure
-
-```
-Weather Map/
-├── WeatherServer/
-│   ├── index.js
-│   ├── package.json
-│   └── .env
-├── public/
-│   ├── index.html
-│   ├── style.css
-│   └── app.js
-├── render.yaml
-└── README.md
-```
-
-## 📝 License
-
-MIT License
+Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScript, Node.js, and Express. The server keeps the OpenWeather API key private, normalizes city searches, and returns current conditions, forecast data, air quality, and comfort metrics to the frontend.
 
 ## Features
 
-Search for current weather by city name
-Displays temperature, weather condition, humidity, and wind speed
-Clean and responsive UI
-Live data powered by OpenWeather API
-Easy deployment via Render.com
+- Professional responsive dashboard UI
+- City search with normalized OpenWeather geocoding
+- Browser location weather lookup
+- Current weather, feels-like temperature, humidity, pressure, visibility, wind, sunrise, sunset, cloud cover, and precipitation
+- 5-day forecast cards
+- Air quality panel when provider data is available
+- Celsius/Fahrenheit unit switching without extra API calls
+- Recent searches stored in the browser
+- Server-side caching, request timeouts, and cleaner API errors
+- Render deployment support
 
-## 👩‍💻 About Me
+## Local Setup
 
-Hi! I’m Susnata Biswas, an Electronics & Telecommunication Engineering student.
-I love coding, building projects, and exploring technology.
-Check out my blog for more projects: susnatacodes.blogspot.com
+1. Clone the repository.
+2. Install server dependencies:
+
+```bash
+cd WeatherServer
+npm install
+```
+
+3. Create a `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+4. Add your OpenWeather API key:
+
+```env
+API_KEY=your_openweather_api_key_here
+PORT=3000
+```
+
+5. Start the server:
+
+```bash
+npm start
+```
+
+6. Open `http://localhost:3000`.
+
+## Render Deployment
+
+The repository includes `render.yaml`. In Render, keep `rootDir` set to `WeatherServer`, then add the environment variable:
+
+```env
+API_KEY=your_openweather_api_key_here
+```
+
+Render will run:
+
+```bash
+npm install
+npm start
+```
+
+## Project Structure
+
+```text
+SUSNATA-WEATHER-APP/
+  WeatherServer/
+    server.js
+    package.json
+    package-lock.json
+    .env.example
+  public/
+    index.html
+    script.js
+    style.css
+  render.yaml
+  README.md
+```
+
+## Author
+
+Developed by Susnata Biswas.

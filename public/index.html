@@ -3,93 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OXYGEN WEATHER - 2025 Susnata Biswas Reserve</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <meta name="description" content="Oxygen Weather by Susnata Biswas">
+    <title>Oxygen Weather | Susnata Weather App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- LEFT PANEL -->
-<div id="leftPanel" class="left-panel">
-  <button id="homeBtn">🏠 Home</button>
-  <button id="feedbackBtn">✍️ Feedback</button>
+    <div class="app-shell">
+        <header class="topbar">
+            <button class="brand-button" id="homeBtn" type="button" aria-label="Oxygen Weather home">
+                <span class="brand-mark" aria-hidden="true"><i data-lucide="cloud-sun"></i></span>
+                <span>
+                    <span class="brand-name">Oxygen Weather</span>
+                    <span class="brand-owner">by Susnata Biswas</span>
+                </span>
+            </button>
 
-  <!-- Social Buttons (hidden initially) -->
-  <div id="socialButtons" class="social-hidden">
-    <button id="whatsappBtn">💬 WhatsApp</button>
-    <button id="instagramBtn">📸 Instagram</button>
-  </div>
-</div>
+            <div class="topbar-actions">
+                <button class="icon-button" id="refreshBtn" type="button" title="Refresh weather" aria-label="Refresh weather">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
 
-<!-- Watermark -->
-<div class="watermark">© 2025 Susnata Biswas Reserve</div>
+                <div class="segmented-control" role="group" aria-label="Temperature unit">
+                    <button class="unit-button is-active" type="button" data-unit="metric">C</button>
+                    <button class="unit-button" type="button" data-unit="imperial">F</button>
+                </div>
 
-<!-- Header -->
-<header>
-    <h1 class="animate__animated animate__fadeInDown">OXYGEN WEATHER</h1>
-    <p id="subtitle" class="animate__animated animate__fadeInUp">Live professional weather updates</p>
-</header>
+                <div class="contact-menu">
+                    <button class="secondary-button" id="feedbackBtn" type="button" aria-expanded="false" aria-controls="contactPanel">
+                        <i data-lucide="message-circle"></i>
+                        <span>Contact</span>
+                    </button>
+                    <div class="contact-panel" id="contactPanel" hidden>
+                        <a href="https://wa.me/918392045833" target="_blank" rel="noopener noreferrer">
+                            <i data-lucide="send"></i>
+                            <span>WhatsApp</span>
+                        </a>
+                        <a href="https://instagram.com/capture_withsusnata" target="_blank" rel="noopener noreferrer">
+                            <i data-lucide="instagram"></i>
+                            <span>Instagram</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-<!-- Search Box + Weather Game Button in the same row -->
-<div class="search-box animate__animated animate__fadeIn">
-    <input type="text" id="cityInput" placeholder="Enter city name...">
-    <button id="searchBtn" class="search-btn">Get Weather</button>
-    <button id="weatherGameBtn" class="weather-game-btn" style="display:none;">Play Weather Game</button>
-</div>
+        <main class="dashboard">
+            <section class="search-toolbar" aria-labelledby="pageTitle">
+                <div>
+                    <p class="eyebrow">Live Conditions</p>
+                    <h1 id="pageTitle">Oxygen Weather</h1>
+                </div>
 
-<!-- Cloud Game Popup -->
-<div id="cloudPopup" class="popup">
-    <div class="popup-content">
-        <div class="emoji">😊</div>
-        <h2>Coming Soon!</h2>
-        <p>Thanks for your interest.</p>
-        <button id="closePopup">Close</button>
+                <form class="search-form" id="weatherForm">
+                    <label class="sr-only" for="cityInput">City name</label>
+                    <div class="input-control">
+                        <i data-lucide="map-pin" aria-hidden="true"></i>
+                        <input id="cityInput" name="city" type="search" autocomplete="off" placeholder="Enter city name">
+                    </div>
+                    <button class="primary-button" id="searchBtn" type="submit">
+                        <i data-lucide="search"></i>
+                        <span>Search</span>
+                    </button>
+                    <button class="secondary-button" id="locationBtn" type="button">
+                        <i data-lucide="navigation"></i>
+                        <span>Use Location</span>
+                    </button>
+                </form>
+            </section>
+
+            <section class="recent-searches" id="recentSearches" aria-label="Recent searches" hidden></section>
+
+            <section class="status-message" id="statusMessage" role="status" hidden></section>
+
+            <section class="loading-panel" id="loading" aria-live="polite" hidden>
+                <div class="loader" aria-hidden="true"></div>
+                <span>Fetching weather data</span>
+            </section>
+
+            <section class="weather-dashboard" id="weatherDashboard" hidden>
+                <section class="current-panel" aria-labelledby="cityName">
+                    <div class="current-copy">
+                        <p class="eyebrow" id="lastUpdated">Updated just now</p>
+                        <h2 id="cityName">City</h2>
+                        <p id="conditionText">Current conditions</p>
+                    </div>
+
+                    <div class="temperature-block">
+                        <img id="weatherIcon" src="" alt="">
+                        <div>
+                            <strong id="temperature">--</strong>
+                            <span id="feelsLike">Feels like --</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="metrics-grid" id="metricsGrid" aria-label="Weather metrics"></section>
+
+                <section class="forecast-section" aria-labelledby="forecastTitle">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Outlook</p>
+                            <h2 id="forecastTitle">5-Day Forecast</h2>
+                        </div>
+                        <span id="forecastSource">OpenWeather</span>
+                    </div>
+                    <div class="forecast-grid" id="forecastGrid"></div>
+                </section>
+
+                <section class="air-section" id="airSection" aria-labelledby="airTitle" hidden>
+                    <div>
+                        <p class="eyebrow">Air Quality</p>
+                        <h2 id="airTitle">AQI <span id="aqiValue">--</span></h2>
+                        <p id="aqiLabel">Unavailable</p>
+                    </div>
+                    <div class="air-components" id="airComponents"></div>
+                </section>
+            </section>
+        </main>
+
+        <footer class="site-footer">
+            <span>&copy; 2026 Susnata Biswas. All rights reserved.</span>
+            <span>Data powered by OpenWeather.</span>
+        </footer>
     </div>
-</div>
 
-<!-- Loading Spinner -->
-<div id="loading" class="loading" style="display:none;">
-    <div class="spinner"></div>
-    <p>Fetching weather data...</p>
-</div>
-
-<!-- Weather Info -->
-<div class="weather-info animate__animated animate__fadeInUp" id="weatherInfo" style="display: none;">
-    <h2 id="cityName">City Name</h2>
-    <div class="weather-main">
-        <img id="weatherIcon" src="" alt="Weather Icon">
-        <span id="weatherMain">--</span>
-    </div>
-    <div class="details">
-        <div>
-            <p>Condition</p>
-            <span id="conditionIcon">🌤️</span>
-        </div>
-        <div>
-            <p>Temperature</p>
-            <span id="temperature">-- °C</span>
-        </div>
-        <div>
-            <p>Humidity</p>
-            <span id="humidity">-- %</span>
-        </div>
-        <div>
-            <p>Wind Speed</p>
-            <span id="windSpeed">-- m/s</span>
-        </div>
-        <div>
-            <p>Pressure</p>
-            <span id="pressure">-- hPa</span>
-        </div>
-    </div>
-</div>
-
-<!-- Footer -->
-<footer>
-    <p>&copy; 2025 Susnata Biswas Reserve. All rights reserved.</p>
-    <p>Developed by Susnata Biswas</p>
-</footer>
-
-<script src="script.js"></script>
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script src="script.js" defer></script>
 </body>
 </html>
