@@ -14,6 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
+const UI_BUILD = 'cinematic-redesign-20260601';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -31,6 +32,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Oxygen-Weather-Version', APP_VERSION.slice(0, 12));
+  res.setHeader('X-Oxygen-Weather-UI', UI_BUILD);
   next();
 });
 
@@ -48,6 +50,7 @@ app.get('/health', (req, res) => {
   res.json({
     ok: true,
     version: APP_VERSION.slice(0, 12),
+    ui: UI_BUILD,
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   });
