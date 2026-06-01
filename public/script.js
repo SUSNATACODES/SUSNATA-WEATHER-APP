@@ -2,7 +2,7 @@ const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
 const LOGIN_EMAIL_KEY = 'oxygen-weather-login-email';
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
-const PARTICLE_COUNT = 28;
+const MAX_CANVAS_DPR = 1.5;
 
 const state = {
     unit: 'metric',
@@ -15,6 +15,17 @@ const state = {
     nextRefreshAt: 0,
     selectedHourlyIndex: 0,
     didBoot: false,
+    background: {
+        ctx: null,
+        rafId: 0,
+        mood: 'clouds',
+        particles: [],
+        width: 0,
+        height: 0,
+        dpr: 1,
+        lastFrame: 0,
+        phase: 0,
+    },
     lastRequest: {
         params: { city: DEFAULT_CITY },
         label: DEFAULT_CITY,
@@ -72,7 +83,7 @@ const dom = {
     smartBriefGrid: null,
     autoRefreshLabel: null,
     hourlyDetail: null,
-    particlesLayer: null,
+    weatherCanvas: null,
     forecastSource: document.getElementById('forecastSource'),
     forecastGrid: document.getElementById('forecastGrid'),
     airSection: document.getElementById('airSection'),
@@ -87,6 +98,7 @@ function bootApp() {
     if (state.didBoot) return;
     state.didBoot = true;
     ensureDynamicPanels();
+    syncWeatherCanvas('clouds');
     wireEvents();
     renderRecentSearches();
     renderIcons();
@@ -251,7 +263,18 @@ function wireEvents() {
         if (document.visibilityState === 'visible' && state.nextRefreshAt && Date.now() >= state.nextRefreshAt) {
             refreshWeather();
         }
+
+        if (document.visibilityState === 'visible') {
+            resumeWeatherCanvas();
+        } else {
+            pauseWeatherCanvas();
+        }
     });
+
+    window.addEventListener('resize', debounce(() => {
+        resizeWeatherCanvas();
+        seedWeatherCanvas(state.background.mood);
+    }, 160));
 }
 
 function ensureDynamicPanels() {
@@ -285,18 +308,26 @@ function ensureDynamicPanels() {
         dom.hourlyDetail = detail;
     }
 
-    if (!dom.particlesLayer && dom.weatherEffects) {
-        const particlesLayer = document.createElement('div');
-        particlesLayer.className = 'js-weather-particles';
-        particlesLayer.setAttribute('aria-hidden', 'true');
-        dom.weatherEffects.append(particlesLayer);
-        dom.particlesLayer = particlesLayer;
+    if (!dom.weatherCanvas && dom.weatherEffects) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'weather-canvas';
+        canvas.setAttribute('aria-hidden', 'true');
+        dom.weatherEffects.prepend(canvas);
+        dom.weatherCanvas = canvas;
     }
 }
 
 function isTypingTarget(target) {
     const tagName = target?.tagName?.toLowerCase();
     return tagName === 'input' || tagName === 'textarea' || target?.isContentEditable;
+}
+
+function debounce(callback, delay) {
+    let timer = 0;
+    return (...args) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => callback(...args), delay);
+    };
 }
 
 function goHome() {
@@ -1261,23 +1292,285 @@ function updateWeatherAtmosphere(data) {
     document.body.style.setProperty('--weather-panel', accent.panel);
     dom.weatherEnergy.textContent = energy;
     dom.headerWeatherMood.textContent = getWeatherMoodLabel(mood);
-    syncWeatherParticles(mood);
+    syncWeatherCanvas(mood);
 }
 
-function syncWeatherParticles(mood) {
-    if (!dom.particlesLayer) return;
+function syncWeatherCanvas(mood) {
+    if (!dom.weatherCanvas) return;
 
-    dom.particlesLayer.className = `js-weather-particles is-${mood}`;
-    dom.particlesLayer.innerHTML = Array.from({ length: PARTICLE_COUNT }, (_, index) => {
-        const x = Math.round(Math.random() * 100);
-        const delay = (Math.random() * -12).toFixed(2);
-        const duration = (5 + Math.random() * 9).toFixed(2);
-        const size = (2 + Math.random() * 5).toFixed(1);
-        const drift = Math.round(-18 + Math.random() * 36);
-        const opacity = (0.24 + Math.random() * 0.52).toFixed(2);
+    const background = state.background;
+    const shouldSeed = background.mood !== mood || !background.particles.length;
+    background.mood = mood;
 
-        return `<span style="--x:${x};--delay:${delay}s;--duration:${duration}s;--size:${size}px;--drift:${drift}px;--opacity:${opacity};--i:${index}"></span>`;
-    }).join('');
+    if (!background.ctx) {
+        background.ctx = dom.weatherCanvas.getContext('2d', {
+            alpha: true,
+            desynchronized: true,
+        });
+    }
+
+    resizeWeatherCanvas();
+    if (shouldSeed) {
+        seedWeatherCanvas(mood);
+    }
+    resumeWeatherCanvas();
+}
+
+function resizeWeatherCanvas() {
+    if (!dom.weatherCanvas || !state.background.ctx) return;
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_CANVAS_DPR);
+    const targetWidth = Math.max(1, Math.floor(width * dpr));
+    const targetHeight = Math.max(1, Math.floor(height * dpr));
+
+    if (dom.weatherCanvas.width !== targetWidth || dom.weatherCanvas.height !== targetHeight) {
+        dom.weatherCanvas.width = targetWidth;
+        dom.weatherCanvas.height = targetHeight;
+        dom.weatherCanvas.style.width = `${width}px`;
+        dom.weatherCanvas.style.height = `${height}px`;
+    }
+
+    state.background.width = width;
+    state.background.height = height;
+    state.background.dpr = dpr;
+    state.background.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function seedWeatherCanvas(mood) {
+    const background = state.background;
+    const width = background.width || window.innerWidth;
+    const height = background.height || window.innerHeight;
+    const baseCount = Math.round(Math.min(96, Math.max(46, (width * height) / 21000)));
+    const count = window.matchMedia('(max-width: 700px)').matches
+        ? Math.round(baseCount * 0.64)
+        : baseCount;
+
+    background.particles = Array.from({ length: count }, () => createCanvasParticle(mood, width, height, true));
+}
+
+function createCanvasParticle(mood, width, height, scatter = false) {
+    const particle = {
+        x: Math.random() * width,
+        y: scatter ? Math.random() * height : -30 - Math.random() * height * 0.35,
+        size: 1 + Math.random() * 3.8,
+        speed: 0.4 + Math.random() * 1.8,
+        drift: -0.45 + Math.random() * 0.9,
+        alpha: 0.28 + Math.random() * 0.58,
+        phase: Math.random() * Math.PI * 2,
+    };
+
+    if (mood === 'rain' || mood === 'storm') {
+        particle.size = 8 + Math.random() * 18;
+        particle.speed = 6.5 + Math.random() * (mood === 'storm' ? 9 : 6);
+        particle.drift = -3.4 - Math.random() * 3;
+        particle.alpha = 0.22 + Math.random() * 0.42;
+    }
+
+    if (mood === 'snow') {
+        particle.size = 2 + Math.random() * 4;
+        particle.speed = 0.8 + Math.random() * 1.6;
+        particle.drift = -0.8 + Math.random() * 1.6;
+        particle.alpha = 0.35 + Math.random() * 0.5;
+    }
+
+    if (mood === 'clear') {
+        particle.size = 1.5 + Math.random() * 4.5;
+        particle.speed = 0.3 + Math.random() * 0.85;
+        particle.drift = -0.25 + Math.random() * 0.5;
+        particle.alpha = 0.18 + Math.random() * 0.38;
+    }
+
+    if (mood === 'mist' || mood === 'clouds') {
+        particle.size = 70 + Math.random() * 180;
+        particle.speed = 0.35 + Math.random() * 0.8;
+        particle.drift = 0.45 + Math.random() * 1.2;
+        particle.alpha = 0.06 + Math.random() * 0.16;
+    }
+
+    return particle;
+}
+
+function resumeWeatherCanvas() {
+    const background = state.background;
+    if (!background.ctx || background.rafId || document.visibilityState === 'hidden') return;
+
+    background.lastFrame = performance.now();
+    background.rafId = window.requestAnimationFrame(drawWeatherCanvas);
+}
+
+function pauseWeatherCanvas() {
+    if (state.background.rafId) {
+        window.cancelAnimationFrame(state.background.rafId);
+        state.background.rafId = 0;
+    }
+}
+
+function drawWeatherCanvas(timestamp) {
+    const background = state.background;
+    const ctx = background.ctx;
+    if (!ctx) return;
+
+    const width = background.width || window.innerWidth;
+    const height = background.height || window.innerHeight;
+    const delta = Math.min(2.4, Math.max(0.35, (timestamp - background.lastFrame) / 16.67));
+    background.lastFrame = timestamp;
+    background.phase += delta * 0.008;
+
+    ctx.clearRect(0, 0, width, height);
+    drawCanvasAtmosphere(ctx, width, height, background.phase, background.mood);
+    drawCanvasParticles(ctx, width, height, delta, background.mood);
+
+    background.rafId = window.requestAnimationFrame(drawWeatherCanvas);
+}
+
+function drawCanvasAtmosphere(ctx, width, height, phase, mood) {
+    const glowX = width * (0.52 + Math.sin(phase * 0.9) * 0.18);
+    const glowY = height * (0.22 + Math.cos(phase * 0.7) * 0.08);
+    const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, Math.max(width, height) * 0.72);
+    glow.addColorStop(0, getCanvasGlow(mood, 0.24));
+    glow.addColorStop(0.44, getCanvasGlow(mood, 0.08));
+    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+    drawCanvasAuroraBands(ctx, width, height, phase, mood);
+
+    ctx.save();
+    ctx.globalAlpha = mood === 'storm' ? 0.22 : 0.14;
+    ctx.strokeStyle = mood === 'clear' ? 'rgba(250, 204, 21, 0.34)' : 'rgba(94, 234, 212, 0.24)';
+    ctx.lineWidth = 1;
+    const spacing = 72;
+    const offset = (phase * 340) % spacing;
+    for (let x = -spacing; x < width + spacing; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x + offset, 0);
+        ctx.lineTo(x + offset - height * 0.34, height);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    if (mood === 'storm' && Math.sin(phase * 11) > 0.985) {
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.86)';
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+    }
+}
+
+function drawCanvasAuroraBands(ctx, width, height, phase, mood) {
+    const colors = getCanvasBandColors(mood);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (let index = 0; index < 3; index += 1) {
+        const yBase = height * (0.22 + index * 0.23);
+        const wave = Math.sin(phase * (1.6 + index * 0.28) + index) * height * 0.08;
+        const gradient = ctx.createLinearGradient(0, yBase, width, yBase + wave);
+        gradient.addColorStop(0, colors[0]);
+        gradient.addColorStop(0.48, colors[1]);
+        gradient.addColorStop(1, colors[2]);
+
+        ctx.globalAlpha = 0.12 - index * 0.018;
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = Math.max(44, width * (0.035 - index * 0.004));
+        ctx.beginPath();
+        ctx.moveTo(-width * 0.12, yBase + wave);
+        ctx.bezierCurveTo(
+            width * 0.18,
+            yBase - height * 0.22 + wave,
+            width * 0.58,
+            yBase + height * 0.24 - wave,
+            width * 1.12,
+            yBase - wave
+        );
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawCanvasParticles(ctx, width, height, delta, mood) {
+    const particles = state.background.particles;
+    ctx.save();
+
+    particles.forEach((particle, index) => {
+        if (mood === 'rain' || mood === 'storm') {
+            particle.x += particle.drift * delta;
+            particle.y += particle.speed * delta;
+            if (particle.y > height + 40 || particle.x < -80) {
+                particles[index] = createCanvasParticle(mood, width, height);
+                return;
+            }
+
+            ctx.globalAlpha = particle.alpha;
+            ctx.strokeStyle = mood === 'storm' ? 'rgba(255, 255, 255, 0.86)' : 'rgba(125, 211, 252, 0.78)';
+            ctx.lineWidth = Math.max(1, particle.size / 9);
+            ctx.beginPath();
+            ctx.moveTo(particle.x, particle.y);
+            ctx.lineTo(particle.x + particle.drift * 4, particle.y + particle.size);
+            ctx.stroke();
+            return;
+        }
+
+        if (mood === 'mist' || mood === 'clouds') {
+            particle.x += particle.drift * delta;
+            particle.y += Math.sin(state.background.phase + particle.phase) * 0.12 * delta;
+            if (particle.x > width + particle.size) {
+                particle.x = -particle.size;
+                particle.y = Math.random() * height;
+            }
+
+            ctx.globalAlpha = particle.alpha;
+            ctx.fillStyle = 'rgba(203, 213, 225, 0.72)';
+            ctx.beginPath();
+            ctx.ellipse(particle.x, particle.y, particle.size, particle.size * 0.08, 0, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+        }
+
+        particle.y -= particle.speed * delta;
+        particle.x += Math.sin(state.background.phase * 2 + particle.phase) * particle.drift * delta;
+        if (particle.y < -24) {
+            particle.y = height + 24;
+            particle.x = Math.random() * width;
+        }
+
+        ctx.globalAlpha = particle.alpha;
+        ctx.fillStyle = mood === 'clear' ? 'rgba(250, 204, 21, 0.9)' : 'rgba(255, 255, 255, 0.84)';
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    ctx.restore();
+}
+
+function getCanvasGlow(mood, alpha) {
+    const colors = {
+        clear: `rgba(250, 204, 21, ${alpha})`,
+        rain: `rgba(14, 165, 233, ${alpha})`,
+        storm: `rgba(124, 58, 237, ${alpha})`,
+        snow: `rgba(186, 230, 253, ${alpha})`,
+        mist: `rgba(203, 213, 225, ${alpha})`,
+        clouds: `rgba(45, 212, 191, ${alpha})`,
+    };
+
+    return colors[mood] || colors.clouds;
+}
+
+function getCanvasBandColors(mood) {
+    const colors = {
+        clear: ['rgba(250, 204, 21, 0)', 'rgba(250, 204, 21, 0.86)', 'rgba(20, 184, 166, 0)'],
+        rain: ['rgba(14, 165, 233, 0)', 'rgba(94, 234, 212, 0.9)', 'rgba(37, 99, 235, 0)'],
+        storm: ['rgba(124, 58, 237, 0)', 'rgba(251, 113, 133, 0.88)', 'rgba(14, 165, 233, 0)'],
+        snow: ['rgba(186, 230, 253, 0)', 'rgba(255, 255, 255, 0.78)', 'rgba(14, 165, 233, 0)'],
+        mist: ['rgba(203, 213, 225, 0)', 'rgba(148, 163, 184, 0.72)', 'rgba(20, 184, 166, 0)'],
+        clouds: ['rgba(45, 212, 191, 0)', 'rgba(14, 165, 233, 0.82)', 'rgba(250, 204, 21, 0)'],
+    };
+
+    return colors[mood] || colors.clouds;
 }
 
 function getWeatherAccent(mood) {
