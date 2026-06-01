@@ -2806,6 +2806,267 @@ body {
     }
 }
 
+.smart-brief-panel {
+    margin-top: 16px;
+    padding: 18px;
+    color: #edf7ff;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(94, 234, 212, 0.16), transparent 32%),
+        linear-gradient(135deg, rgba(8, 18, 32, 0.9), rgba(11, 28, 45, 0.76)),
+        #081220;
+    border: 1px solid rgba(125, 211, 252, 0.2);
+    border-radius: var(--radius);
+    box-shadow: 0 24px 58px rgba(0, 0, 0, 0.28);
+    animation: riseIn 520ms ease both;
+}
+
+.smart-brief-panel .section-heading {
+    margin-bottom: 14px;
+}
+
+.smart-brief-panel #autoRefreshLabel {
+    color: #9ff5ef;
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.smart-brief-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.smart-brief-card {
+    min-height: 132px;
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.055)),
+        rgba(8, 18, 32, 0.72);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: var(--radius);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    animation: cardPop 520ms ease both;
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.smart-brief-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(94, 234, 212, 0.54);
+    box-shadow: 0 24px 52px rgba(0, 0, 0, 0.28), 0 0 30px rgba(94, 234, 212, 0.12);
+}
+
+.smart-brief-card span {
+    color: #9fb2c7;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.smart-brief-card strong {
+    display: block;
+    margin-top: 8px;
+    color: #f8fbff;
+    font-size: 1.18rem;
+    line-height: 1.05;
+}
+
+.smart-brief-card p {
+    margin: 8px 0 0;
+    color: #9fb2c7;
+    font-size: 0.78rem;
+    font-weight: 750;
+    line-height: 1.35;
+}
+
+.smart-brief-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    color: #07111f;
+    background: #5eead4;
+    border-radius: var(--radius);
+    box-shadow: 0 14px 26px rgba(94, 234, 212, 0.2);
+}
+
+.smart-brief-card.is-alert .smart-brief-icon {
+    color: #fff;
+    background: var(--coral);
+    box-shadow: 0 14px 26px rgba(220, 74, 54, 0.25);
+}
+
+.smart-brief-card.is-watch .smart-brief-icon {
+    color: #07111f;
+    background: #facc15;
+    box-shadow: 0 14px 26px rgba(250, 204, 21, 0.22);
+}
+
+.hourly-card {
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.hourly-card.is-selected {
+    background:
+        linear-gradient(145deg, rgba(94, 234, 212, 0.2), rgba(14, 165, 233, 0.12)),
+        rgba(255, 255, 255, 0.12);
+    border-color: rgba(94, 234, 212, 0.72);
+    box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.18), 0 22px 44px rgba(0, 0, 0, 0.24);
+}
+
+.hourly-detail {
+    margin-top: 14px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: minmax(160px, 0.55fr) minmax(0, 1fr);
+    gap: 14px;
+    color: #edf7ff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: var(--radius);
+}
+
+.hourly-detail h3 {
+    margin: 0;
+    color: #f8fbff;
+    font-size: 1.25rem;
+}
+
+.hourly-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.hourly-detail-grid span {
+    min-height: 70px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 10px;
+    background: rgba(8, 18, 32, 0.52);
+    border: 1px solid rgba(125, 211, 252, 0.14);
+    border-radius: var(--radius);
+}
+
+.hourly-detail-grid strong {
+    color: #f8fbff;
+    font-size: 1rem;
+}
+
+.hourly-detail-grid small {
+    color: #9fb2c7;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.js-weather-particles {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    contain: strict;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.js-weather-particles span {
+    position: absolute;
+    top: -8vh;
+    left: calc(2vw + (var(--x) * 0.96vw));
+    width: var(--size);
+    height: calc(var(--size) * 3.6);
+    opacity: var(--opacity);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(125, 211, 252, 0.12));
+    border-radius: 999px;
+    transform: translateX(var(--drift)) rotate(18deg);
+    animation: particleFall var(--duration) linear var(--delay) infinite;
+}
+
+.js-weather-particles.is-clear span {
+    width: calc(var(--size) * 1.8);
+    height: calc(var(--size) * 1.8);
+    background: #facc15;
+    box-shadow: 0 0 22px rgba(250, 204, 21, 0.4);
+    animation-name: particleFloat;
+}
+
+.js-weather-particles.is-snow span {
+    width: calc(var(--size) * 2);
+    height: calc(var(--size) * 2);
+    background: rgba(255, 255, 255, 0.86);
+    border-radius: 50%;
+    animation-name: particleFloat;
+}
+
+.js-weather-particles.is-storm span {
+    background: linear-gradient(180deg, rgba(250, 204, 21, 0.95), rgba(255, 255, 255, 0.08));
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.28);
+}
+
+.js-weather-particles.is-mist span,
+.js-weather-particles.is-clouds span {
+    height: 2px;
+    width: calc(var(--size) * 10);
+    background: rgba(203, 213, 225, 0.3);
+    animation-name: particleDrift;
+}
+
+@keyframes particleFall {
+    to {
+        top: 108vh;
+        transform: translateX(calc(var(--drift) * -1)) rotate(18deg);
+    }
+}
+
+@keyframes particleFloat {
+    0% {
+        top: 102vh;
+        transform: translateX(0) scale(0.9);
+    }
+    100% {
+        top: -10vh;
+        transform: translateX(var(--drift)) scale(1.18);
+    }
+}
+
+@keyframes particleDrift {
+    0% {
+        top: calc((var(--i) % 12) * 8vh);
+        transform: translateX(-12vw);
+    }
+    100% {
+        top: calc((var(--i) % 12) * 8vh);
+        transform: translateX(112vw);
+    }
+}
+
+@media (max-width: 980px) {
+    .smart-brief-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hourly-detail,
+    .hourly-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .smart-brief-panel {
+        padding: 16px;
+    }
+
+    .smart-brief-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

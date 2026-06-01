@@ -7,6 +7,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Professional responsive dashboard UI
 - Redesigned command-center interface with smart insights, hourly outlook, live clock, and weather-reactive animation
 - Cinematic animated radar hero with glass UI, stronger motion, and real-time atmosphere styling
+- JavaScript live intelligence feed, clickable hourly details, auto-refresh countdown, weather particles, and dynamic page title
 - Automatic local weather detection when browser location access is enabled
 - Jalpaiguri default weather when location permission has not already been granted
 - City search with normalized OpenWeather geocoding
