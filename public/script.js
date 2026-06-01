@@ -8,6 +8,7 @@ const state = {
     recentSearches: loadRecentSearches(),
     loginEmail: localStorage.getItem(LOGIN_EMAIL_KEY) || '',
     clockTimer: null,
+    didBoot: false,
     lastRequest: {
         params: { city: DEFAULT_CITY },
         label: DEFAULT_CITY,
@@ -70,12 +71,20 @@ const dom = {
     menuActionButtons: Array.from(document.querySelectorAll('[data-menu-action]')),
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+function bootApp() {
+    if (state.didBoot) return;
+    state.didBoot = true;
     wireEvents();
     renderRecentSearches();
     renderIcons();
     initializeWeather();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootApp, { once: true });
+} else {
+    bootApp();
+}
 
 async function initializeWeather() {
     const detectedLocation = await tryAutoLocationWeather();
@@ -1175,6 +1184,8 @@ function renderIcons() {
         window.lucide.createIcons();
     }
 }
+
+window.renderIcons = renderIcons;
 
 function escapeHtml(value) {
     return String(value)

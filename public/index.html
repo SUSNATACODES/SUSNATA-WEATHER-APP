@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=pro-redesign-20260601">
+    <link rel="stylesheet" href="style.css?v=cinematic-redesign-20260601">
 </head>
 <body>
     <div class="weather-effects" aria-hidden="true">
@@ -118,6 +118,29 @@
                         <span><i data-lucide="clock-3"></i><span id="headerLocalTime">--:--</span></span>
                         <span><i data-lucide="sparkles"></i><span id="headerWeatherMood">Sky Ready</span></span>
                     </div>
+                </div>
+
+                <div class="hero-visual" aria-hidden="true">
+                    <div class="radar-rings">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="radar-sweep"></div>
+                    <div class="radar-core">
+                        <i data-lucide="cloud-lightning"></i>
+                    </div>
+                    <div class="signal-card signal-card-one">
+                        <span>O2 Radar</span>
+                        <strong>Live</strong>
+                    </div>
+                    <div class="signal-card signal-card-two">
+                        <span>Pulse</span>
+                        <strong>Active</strong>
+                    </div>
+                    <span class="storm-dot storm-dot-one"></span>
+                    <span class="storm-dot storm-dot-two"></span>
+                    <span class="storm-dot storm-dot-three"></span>
                 </div>
 
                 <form class="search-form" id="weatherForm">
@@ -282,7 +305,7 @@
         </button>
     </div>
 
-    <script src="https://unpkg.com/lucide@latest" defer></script>
-    <script src="script.js?v=pro-redesign-20260601" defer></script>
+    <script src="script.js?v=cinematic-redesign-20260601" defer></script>
+    <script src="https://unpkg.com/lucide@latest" defer onload="window.renderIcons && window.renderIcons()"></script>
 </body>
 </html>
