@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=canvas-speed-20260601">
+    <link rel="stylesheet" href="style.css?v=midnight-mail-history-20260602">
 </head>
 <body>
     <div class="weather-effects" aria-hidden="true"></div>
@@ -160,7 +160,7 @@
                     <h2 id="mailAlertsTitle">Weather Mail Alerts</h2>
                     <div class="mail-alerts-meta" aria-label="Mail alert behavior">
                         <span><i data-lucide="shield-alert"></i>Urgent only</span>
-                        <span><i data-lucide="clock-3"></i>12:00 AM report</span>
+                        <span><i data-lucide="clock-3"></i>12:00 AM history</span>
                         <span><i data-lucide="ban"></i>No spam</span>
                     </div>
                 </div>
@@ -182,11 +182,39 @@
                         <i data-lucide="crosshair"></i>
                         <span>Current</span>
                     </button>
+
+                    <div class="mail-alerts-preferences" aria-label="Mail alert preferences">
+                        <label class="mail-toggle">
+                            <input id="urgentAlertsToggle" type="checkbox" checked>
+                            <span>Important alerts</span>
+                        </label>
+                        <label class="mail-toggle">
+                            <input id="dailyReportToggle" type="checkbox" checked>
+                            <span>Daily history</span>
+                        </label>
+                        <label class="mail-field">
+                            <span>Report time</span>
+                            <input id="dailyReportTime" type="time" value="00:00">
+                        </label>
+                        <label class="mail-field">
+                            <span>Alert level</span>
+                            <select id="alertSensitivity">
+                                <option value="important">Important</option>
+                                <option value="emergency-only">Emergency only</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <button class="secondary-button" id="mailAlertsTest" type="button">
+                        <i data-lucide="send"></i>
+                        <span>Send Test</span>
+                    </button>
                     <button class="primary-button" id="mailAlertsSubmit" type="submit">
                         <i data-lucide="bell-plus"></i>
                         <span>Enable Mail</span>
                     </button>
 
+                    <p class="mail-server-status" id="mailServerStatus" role="status" hidden></p>
                     <p class="mail-alerts-status" id="mailAlertsStatus" role="status" hidden></p>
                 </form>
             </section>
@@ -290,7 +318,7 @@
         </button>
     </div>
 
-    <script src="script.js?v=canvas-speed-20260601" defer></script>
+    <script src="script.js?v=midnight-mail-history-20260602" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer onload="window.renderIcons && window.renderIcons()"></script>
 </body>
 </html>

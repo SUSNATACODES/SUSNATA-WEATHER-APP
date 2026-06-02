@@ -19,7 +19,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Celsius/Fahrenheit unit switching without extra API calls
 - Recent searches stored in the browser
 - Animated login/signup popup styled after the Oxygen downloaded form
-- Gmail/SMTP weather reminders with important alerts, one 12:00 AM daily report, and unsubscribe links
+- Gmail/SMTP weather reminders with important alerts, hourly history tracking, one 12:00 AM full-day report, after-midnight outlook, test emails, and unsubscribe links
 - In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
 - Server-side caching, request timeouts, and cleaner API errors
 - Render deployment support
@@ -59,6 +59,8 @@ MAIL_PORT=465
 ```
 
 For Gmail, create an app password in your Google account and use that as `MAIL_PASS`.
+The website will show a Gmail server status message. If `MAIL_USER` and `MAIL_PASS` are missing on Render, subscriptions can be saved but emails cannot be delivered yet.
+For exact midnight delivery, use an always-on Render service or an external uptime/cron ping; free sleeping services can only run the scheduler while the server is awake.
 
 5. Start the server:
 
@@ -74,7 +76,7 @@ The repository includes `render.yaml`. In Render, keep `rootDir` set to `Weather
 
 ```env
 API_KEY=your_openweather_api_key_here
-APP_BASE_URL=https://susnata-weather-app-oeqt.onrender.com
+APP_BASE_URL=https://susnata-weather-app.onrender.com
 MAIL_USER=your_gmail_address@gmail.com
 MAIL_PASS=your_gmail_app_password
 MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"

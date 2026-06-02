@@ -57,7 +57,13 @@ const dom = {
     alertEmail: document.getElementById('alertEmail'),
     alertCity: document.getElementById('alertCity'),
     useCurrentWeatherForMail: document.getElementById('useCurrentWeatherForMail'),
+    urgentAlertsToggle: document.getElementById('urgentAlertsToggle'),
+    dailyReportToggle: document.getElementById('dailyReportToggle'),
+    dailyReportTime: document.getElementById('dailyReportTime'),
+    alertSensitivity: document.getElementById('alertSensitivity'),
+    mailAlertsTest: document.getElementById('mailAlertsTest'),
     mailAlertsSubmit: document.getElementById('mailAlertsSubmit'),
+    mailServerStatus: document.getElementById('mailServerStatus'),
     mailAlertsStatus: document.getElementById('mailAlertsStatus'),
     earthquakeOverlay: document.getElementById('earthquakeOverlay'),
     earthquakeFrame: document.getElementById('earthquakeFrame'),
@@ -102,6 +108,7 @@ function bootApp() {
     wireEvents();
     renderRecentSearches();
     renderIcons();
+    loadMailAlertStatus();
     initializeWeather();
 }
 
@@ -124,6 +131,7 @@ function wireEvents() {
         dom.loginEmail.value = state.loginEmail;
         dom.alertEmail.value = state.loginEmail;
     }
+    syncMailPreferenceControls();
 
     dom.weatherForm.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -163,6 +171,14 @@ function wireEvents() {
 
     dom.useCurrentWeatherForMail.addEventListener('click', () => {
         fillMailLocationFromCurrentWeather();
+    });
+
+    dom.mailAlertsTest.addEventListener('click', () => {
+        sendMailAlertsTest();
+    });
+
+    dom.dailyReportToggle.addEventListener('change', () => {
+        syncMailPreferenceControls();
     });
 
     dom.alertCity.addEventListener('input', () => {
@@ -447,13 +463,34 @@ function fillMailLocationFromCurrentWeather() {
     showMailAlertsStatus(`Mail location set to ${locationLabel}.`, 'success');
 }
 
+async function loadMailAlertStatus() {
+    try {
+        const response = await fetch('/mail-alerts/status');
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data) {
+            throw new Error('Mail status is unavailable right now.');
+        }
+
+        showMailServerStatus(data.message, data.mailConfigured ? 'success' : 'warning');
+    } catch {
+        showMailServerStatus('Mail server status could not be checked yet.', 'warning');
+    }
+}
+
 async function subscribeMailAlerts() {
     const email = dom.alertEmail.value.trim();
     const locationRequest = getMailAlertLocationRequest();
+    const options = getMailAlertOptions();
 
     if (!email || !dom.alertEmail.checkValidity()) {
         showMailAlertsStatus('Enter a valid email address.', 'error');
         dom.alertEmail.focus();
+        return;
+    }
+
+    if (!options.dailyReports && !options.urgentAlerts) {
+        showMailAlertsStatus('Keep daily history or important alerts enabled.', 'error');
         return;
     }
 
@@ -469,6 +506,7 @@ async function subscribeMailAlerts() {
             body: JSON.stringify({
                 email,
                 ...locationRequest.params,
+                options,
             }),
         });
         const data = await response.json().catch(() => ({
@@ -481,11 +519,75 @@ async function subscribeMailAlerts() {
 
         const tone = data.mailConfigured ? 'success' : 'info';
         showMailAlertsStatus(data.message || `Mail alerts enabled for ${locationRequest.label}.`, tone);
+        if (data.nextDailyReport) {
+            showMailServerStatus(data.nextDailyReport, data.mailConfigured ? 'success' : 'warning');
+        }
     } catch (error) {
         showMailAlertsStatus(error.message || 'Mail alerts could not be enabled.', 'error');
     } finally {
         setMailAlertsBusy(false);
     }
+}
+
+async function sendMailAlertsTest() {
+    const email = dom.alertEmail.value.trim();
+    const locationRequest = getMailAlertLocationRequest();
+    const options = getMailAlertOptions();
+
+    if (!email || !dom.alertEmail.checkValidity()) {
+        showMailAlertsStatus('Enter a valid email address before sending a test.', 'error');
+        dom.alertEmail.focus();
+        return;
+    }
+
+    if (!options.dailyReports && !options.urgentAlerts) {
+        showMailAlertsStatus('Keep daily history or important alerts enabled before sending a test.', 'error');
+        return;
+    }
+
+    setMailAlertsBusy(true);
+    showMailAlertsStatus('Sending a test weather report.', 'info');
+
+    try {
+        const response = await fetch('/mail-alerts/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email,
+                ...locationRequest.params,
+                options,
+            }),
+        });
+        const data = await response.json().catch(() => ({
+            error: 'The server returned an unexpected mail response.',
+        }));
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Test email could not be sent.');
+        }
+
+        showMailAlertsStatus(data.message || 'Test weather report sent.', 'success');
+    } catch (error) {
+        showMailAlertsStatus(error.message || 'Test email could not be sent.', 'error');
+    } finally {
+        setMailAlertsBusy(false);
+        loadMailAlertStatus();
+    }
+}
+
+function getMailAlertOptions() {
+    return {
+        dailyReports: dom.dailyReportToggle.checked,
+        urgentAlerts: dom.urgentAlertsToggle.checked,
+        dailyReportTime: dom.dailyReportTime.value || '00:00',
+        alertSensitivity: dom.alertSensitivity.value,
+    };
+}
+
+function syncMailPreferenceControls() {
+    dom.dailyReportTime.disabled = !dom.dailyReportToggle.checked;
 }
 
 function getMailAlertLocationRequest() {
@@ -528,9 +630,30 @@ function getMailAlertLocationRequest() {
 
 function setMailAlertsBusy(isBusy) {
     dom.mailAlertsForm.classList.toggle('is-busy', isBusy);
-    [dom.alertEmail, dom.alertCity, dom.useCurrentWeatherForMail, dom.mailAlertsSubmit].forEach((element) => {
+    [
+        dom.alertEmail,
+        dom.alertCity,
+        dom.useCurrentWeatherForMail,
+        dom.urgentAlertsToggle,
+        dom.dailyReportToggle,
+        dom.dailyReportTime,
+        dom.alertSensitivity,
+        dom.mailAlertsTest,
+        dom.mailAlertsSubmit,
+    ].forEach((element) => {
         element.disabled = isBusy;
     });
+
+    if (!isBusy) {
+        syncMailPreferenceControls();
+    }
+}
+
+function showMailServerStatus(message, tone = 'warning') {
+    dom.mailServerStatus.textContent = message;
+    dom.mailServerStatus.classList.toggle('is-success', tone === 'success');
+    dom.mailServerStatus.classList.toggle('is-warning', tone === 'warning');
+    dom.mailServerStatus.hidden = false;
 }
 
 function showMailAlertsStatus(message, tone = 'info') {

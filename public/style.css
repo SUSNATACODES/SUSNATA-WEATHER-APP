@@ -764,11 +764,63 @@ h1 {
 
 .mail-alerts-form {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.9fr) auto auto;
+    grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.9fr) auto auto auto;
     gap: 10px;
     align-items: center;
 }
 
+.mail-alerts-preferences {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mail-toggle,
+.mail-field {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    color: var(--ink);
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-weight: 800;
+}
+
+.mail-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--teal);
+}
+
+.mail-field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.mail-field span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.mail-field input,
+.mail-field select {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: var(--ink);
+    background: transparent;
+    font-weight: 800;
+}
+
+.mail-server-status,
 .mail-alerts-status {
     grid-column: 1 / -1;
     margin: 2px 0 0;
@@ -778,10 +830,17 @@ h1 {
     font-weight: 800;
 }
 
+.mail-server-status.is-success,
 .mail-alerts-status.is-success {
     color: #0f6d42;
     background: #effaf4;
     border: 1px solid #bde9cd;
+}
+
+.mail-server-status.is-warning {
+    color: #8a4b04;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
 }
 
 .mail-alerts-status.is-error {
@@ -1806,6 +1865,10 @@ h1 {
         grid-template-columns: 1fr 1fr;
     }
 
+    .mail-alerts-preferences {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .forecast-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -1861,6 +1924,10 @@ h1 {
     }
 
     .mail-alerts-form {
+        grid-template-columns: 1fr;
+    }
+
+    .mail-alerts-preferences {
         grid-template-columns: 1fr;
     }
 
@@ -2440,6 +2507,38 @@ body {
     color: #dffdfa;
     background: rgba(94, 234, 212, 0.12);
     border-color: rgba(94, 234, 212, 0.24);
+}
+
+.mail-toggle,
+.mail-field {
+    color: #edf7ff;
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(125, 211, 252, 0.18);
+}
+
+.mail-field span {
+    color: #9fb2c7;
+}
+
+.mail-field input,
+.mail-field select {
+    color: #f8fbff;
+}
+
+.mail-field select option {
+    color: #17212f;
+}
+
+.mail-server-status.is-success {
+    color: #b7fff6;
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(94, 234, 212, 0.28);
+}
+
+.mail-server-status.is-warning {
+    color: #fde68a;
+    background: rgba(250, 204, 21, 0.1);
+    border-color: rgba(250, 204, 21, 0.24);
 }
 
 .weather-dashboard {

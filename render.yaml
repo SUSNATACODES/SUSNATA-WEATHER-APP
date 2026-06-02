@@ -11,7 +11,7 @@ services:
       - key: API_KEY
         sync: false
       - key: APP_BASE_URL
-        value: https://susnata-weather-app-oeqt.onrender.com
+        value: https://susnata-weather-app.onrender.com
       - key: MAIL_USER
         sync: false
       - key: MAIL_PASS

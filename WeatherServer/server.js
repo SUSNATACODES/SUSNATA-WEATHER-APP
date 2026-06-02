@@ -14,11 +14,14 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'canvas-speed-20260601';
+const UI_BUILD = 'midnight-mail-history-20260602';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
+const HISTORY_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-history.json');
 const MAIL_CHECK_INTERVAL_MS = 60 * 1000;
+const WEATHER_HISTORY_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
+const WEATHER_HISTORY_MAX_DAYS = 5;
 const URGENT_ALERT_INTERVAL_MS = 30 * 60 * 1000;
 const URGENT_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const weatherCache = new Map();
@@ -94,6 +97,23 @@ app.get('/weather', async (req, res) => {
   }
 });
 
+app.get('/mail-alerts/status', async (req, res) => {
+  const subscriptions = await loadMailSubscriptions();
+  const activeSubscriptions = subscriptions.filter((subscription) => subscription.active);
+
+  res.json({
+    ok: true,
+    mailConfigured: isMailConfigured(),
+    schedulerRunning,
+    activeSubscriptions: activeSubscriptions.length,
+    defaultDailyReportTime: '00:00',
+    historySampleMinutes: Math.round(WEATHER_HISTORY_SAMPLE_INTERVAL_MS / 60000),
+    message: isMailConfigured()
+      ? 'Gmail SMTP is connected. Automatic reports can be delivered.'
+      : 'Gmail SMTP is not connected yet. Add MAIL_USER and MAIL_PASS on Render to send automatic emails.',
+  });
+});
+
 app.post('/mail-alerts/subscribe', async (req, res) => {
   const parsed = parseMailSubscriptionRequest(req.body);
   if (!parsed.ok) {
@@ -109,7 +129,9 @@ app.post('/mail-alerts/subscribe', async (req, res) => {
   try {
     const payload = await fetchWeatherPayload(parsed.weatherRequest);
     const subscriptions = await loadMailSubscriptions();
-    const now = new Date().toISOString();
+    const history = await loadWeatherHistory();
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
     const locationKey = getSubscriptionLocationKeyFromRequest(parsed.weatherRequest);
     const existingIndex = subscriptions.findIndex((subscription) => {
       return (
@@ -125,18 +147,18 @@ app.post('/mail-alerts/subscribe', async (req, res) => {
       email: parsed.email,
       active: true,
       location: buildSubscriptionLocation(parsed.weatherRequest, payload.location),
-      options: {
-        dailyReports: true,
-        urgentAlerts: true,
-        dailyReportTime: '00:00',
-      },
-      createdAt: existing?.createdAt || now,
-      updatedAt: now,
+      options: parsed.options,
+      createdAt: existing?.createdAt || nowIso,
+      updatedAt: nowIso,
       lastDailyReportDate: existing?.lastDailyReportDate || null,
       lastImportantCheckAt: existing?.lastImportantCheckAt || null,
       lastUrgentSignature: existing?.lastUrgentSignature || null,
       lastUrgentSentAt: existing?.lastUrgentSentAt || null,
+      lastHistorySampleAt: existing?.lastHistorySampleAt || null,
     };
+
+    recordWeatherHistory(history, subscription, payload, now);
+    subscription.lastHistorySampleAt = nowIso;
 
     if (existingIndex >= 0) {
       subscriptions[existingIndex] = subscription;
@@ -145,6 +167,7 @@ app.post('/mail-alerts/subscribe', async (req, res) => {
     }
 
     await saveMailSubscriptions(subscriptions);
+    await saveWeatherHistory(history);
 
     const unsubscribeUrl = buildUnsubscribeUrl(req, subscription.token);
     const confirmationSent = await sendEmail({
@@ -157,9 +180,77 @@ app.post('/mail-alerts/subscribe', async (req, res) => {
       ok: true,
       mailConfigured: isMailConfigured(),
       confirmationSent,
+      nextDailyReport: parsed.options.dailyReports
+        ? `Daily history report is scheduled around ${parsed.options.dailyReportTime} local time.`
+        : 'Daily report is turned off for this subscription.',
       message: confirmationSent
-        ? 'Mail alerts are enabled. Check your inbox for confirmation.'
-        : 'Mail alert settings are saved. Add Gmail SMTP environment variables on the server to start delivery.',
+        ? 'Mail alerts are enabled. Check your inbox for confirmation and use Send test if you want to verify again.'
+        : 'Mail alert settings are saved, but Gmail SMTP is not connected on Render yet. Add MAIL_USER and MAIL_PASS to start automatic delivery.',
+    });
+  } catch (error) {
+    sendWeatherError(res, error);
+  }
+});
+
+app.post('/mail-alerts/test', async (req, res) => {
+  const parsed = parseMailSubscriptionRequest(req.body);
+  if (!parsed.ok) {
+    return res.status(400).json({ error: parsed.error });
+  }
+
+  if (!API_KEY) {
+    return res.status(500).json({
+      error: 'Weather API key is required before a test report can be sent.',
+    });
+  }
+
+  if (!isMailConfigured()) {
+    return res.status(503).json({
+      error: 'Gmail SMTP is not connected on the server. Add MAIL_USER and MAIL_PASS on Render first.',
+    });
+  }
+
+  try {
+    const payload = await fetchWeatherPayload(parsed.weatherRequest);
+    const temporarySubscription = {
+      id: `preview-${crypto.randomUUID()}`,
+      token: crypto.randomBytes(24).toString('hex'),
+      email: parsed.email,
+      active: true,
+      location: buildSubscriptionLocation(parsed.weatherRequest, payload.location),
+      options: parsed.options,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const unsubscribeUrl = buildUnsubscribeUrl(req, temporarySubscription.token);
+    const historySamples = [
+      createWeatherHistorySample(temporarySubscription, payload, Date.now() - 2 * 60 * 60 * 1000),
+      createWeatherHistorySample(temporarySubscription, payload, Date.now() - 60 * 60 * 1000),
+      createWeatherHistorySample(temporarySubscription, payload, Date.now()),
+    ];
+
+    const sent = await sendEmail({
+      to: temporarySubscription.email,
+      subject: `Test daily weather report for ${temporarySubscription.location.label}`,
+      ...buildDailyReportEmail(
+        temporarySubscription,
+        payload,
+        unsubscribeUrl,
+        historySamples,
+        getLocalDateKey(Date.now() / 1000, temporarySubscription.location.timezoneOffset || 0),
+        true
+      ),
+    });
+
+    if (!sent) {
+      return res.status(502).json({
+        error: 'The mail server did not accept the test message. Check Gmail app password settings.',
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: 'Test weather report sent. Check the inbox and spam folder once.',
     });
   } catch (error) {
     sendWeatherError(res, error);
@@ -480,9 +571,20 @@ function getLocalHour(timestampSeconds, timezoneOffset) {
   return new Date((timestampSeconds + timezoneOffset) * 1000).getUTCHours();
 }
 
+function getLocalTimeLabel(timestampSeconds, timezoneOffset) {
+  const localDate = new Date((timestampSeconds + timezoneOffset) * 1000);
+  return `${String(localDate.getUTCHours()).padStart(2, '0')}:${String(localDate.getUTCMinutes()).padStart(2, '0')}`;
+}
+
 function getLocalMinutesSinceMidnight(timestampSeconds, timezoneOffset) {
   const localDate = new Date((timestampSeconds + timezoneOffset) * 1000);
   return localDate.getUTCHours() * 60 + localDate.getUTCMinutes();
+}
+
+function getPreviousLocalDateKey(timestampSeconds, timezoneOffset) {
+  const localDate = new Date((timestampSeconds + timezoneOffset) * 1000);
+  localDate.setUTCDate(localDate.getUTCDate() - 1);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function buildAirQuality(airQuality) {
@@ -532,15 +634,62 @@ function parseMailSubscriptionRequest(body) {
     return { ok: false, error: 'Choose a city or use your current weather location.' };
   }
 
+  const options = parseMailAlertOptions(body?.options || body);
+
+  if (!options.dailyReports && !options.urgentAlerts) {
+    return {
+      ok: false,
+      error: 'Keep at least one mail behavior enabled: daily history or important alerts.',
+    };
+  }
+
   return {
     ok: true,
     email,
     weatherRequest,
+    options,
   };
 }
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function parseMailAlertOptions(source = {}) {
+  const dailyReports = parseBooleanOption(source.dailyReports, true);
+  const urgentAlerts = parseBooleanOption(source.urgentAlerts, true);
+  const alertSensitivity =
+    source.alertSensitivity === 'emergency-only' ? 'emergency-only' : 'important';
+
+  return {
+    dailyReports,
+    urgentAlerts,
+    dailyReportTime: normalizeDailyReportTime(source.dailyReportTime),
+    alertSensitivity,
+  };
+}
+
+function parseBooleanOption(value, fallback) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  }
+
+  return fallback;
+}
+
+function normalizeDailyReportTime(value) {
+  if (typeof value !== 'string') {
+    return '00:00';
+  }
+
+  const match = value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  return match ? `${match[1]}:${match[2]}` : '00:00';
 }
 
 function buildSubscriptionLocation(request, location) {
@@ -612,6 +761,91 @@ async function saveMailSubscriptions(subscriptions) {
   const temporaryFile = `${SUBSCRIPTIONS_FILE}.tmp`;
   await fs.writeFile(temporaryFile, JSON.stringify(subscriptions, null, 2));
   await fs.rename(temporaryFile, SUBSCRIPTIONS_FILE);
+}
+
+async function loadWeatherHistory() {
+  try {
+    const contents = await fs.readFile(HISTORY_FILE, 'utf8');
+    const history = JSON.parse(contents);
+    return history && typeof history === 'object' && !Array.isArray(history) ? history : {};
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return {};
+    }
+    console.error('Failed to load weather mail history:', error.message);
+    return {};
+  }
+}
+
+async function saveWeatherHistory(history) {
+  await fs.mkdir(SUBSCRIPTIONS_DIR, { recursive: true });
+  const temporaryFile = `${HISTORY_FILE}.tmp`;
+  await fs.writeFile(temporaryFile, JSON.stringify(history, null, 2));
+  await fs.rename(temporaryFile, HISTORY_FILE);
+}
+
+function recordWeatherHistory(history, subscription, payload, timestampMs) {
+  const offset = subscription.location?.timezoneOffset || payload.location?.timezoneOffset || 0;
+  const dateKey = getLocalDateKey(timestampMs / 1000, offset);
+  const subscriptionHistory = history[subscription.id] || {};
+  const daySamples = Array.isArray(subscriptionHistory[dateKey])
+    ? subscriptionHistory[dateKey]
+    : [];
+  const sample = createWeatherHistorySample(subscription, payload, timestampMs);
+  const lastSample = daySamples[daySamples.length - 1];
+
+  if (
+    lastSample &&
+    Math.abs(Date.parse(sample.timestamp) - Date.parse(lastSample.timestamp)) < 20 * 60 * 1000
+  ) {
+    daySamples[daySamples.length - 1] = sample;
+  } else {
+    daySamples.push(sample);
+  }
+
+  subscriptionHistory[dateKey] = daySamples.slice(-30);
+  history[subscription.id] = pruneWeatherHistory(subscriptionHistory);
+}
+
+function createWeatherHistorySample(subscription, payload, timestampMs) {
+  const current = payload.current;
+  const offset = subscription.location?.timezoneOffset || payload.location?.timezoneOffset || 0;
+
+  return {
+    timestamp: new Date(timestampMs).toISOString(),
+    localDate: getLocalDateKey(timestampMs / 1000, offset),
+    localTime: getLocalTimeLabel(timestampMs / 1000, offset),
+    location: subscription.location?.label || formatLocationLabel(payload.location),
+    condition: current.condition.description,
+    temperature: current.temperature,
+    feelsLike: current.feelsLike,
+    humidity: current.humidity,
+    pressure: current.pressure,
+    windSpeed: current.windSpeed,
+    windGust: current.windGust,
+    rainVolume: round(Number(current.rainVolume || 0)),
+    snowVolume: round(Number(current.snowVolume || 0)),
+    visibility: current.visibility,
+    aqi: payload.airQuality?.aqi || null,
+  };
+}
+
+function pruneWeatherHistory(subscriptionHistory) {
+  const keys = Object.keys(subscriptionHistory).sort();
+  const keepKeys = new Set(keys.slice(-WEATHER_HISTORY_MAX_DAYS));
+
+  return keys.reduce((cleaned, key) => {
+    if (keepKeys.has(key)) {
+      cleaned[key] = subscriptionHistory[key];
+    }
+    return cleaned;
+  }, {});
+}
+
+function getHistorySamples(history, subscription, dateKey) {
+  return Array.isArray(history?.[subscription.id]?.[dateKey])
+    ? history[subscription.id][dateKey]
+    : [];
 }
 
 function isMailConfigured() {
@@ -687,24 +921,29 @@ function startMailScheduler() {
 }
 
 async function runMailScheduler() {
-  if (!API_KEY || !isMailConfigured()) {
+  if (!API_KEY) {
     return;
   }
 
   const subscriptions = await loadMailSubscriptions();
+  const history = await loadWeatherHistory();
   const activeSubscriptions = subscriptions.filter((subscription) => subscription.active);
   if (!activeSubscriptions.length) {
     return;
   }
 
   let changed = false;
+  let historyChanged = false;
   const now = Date.now();
+  const mailConfigured = isMailConfigured();
 
   for (const subscription of activeSubscriptions) {
-    const dailyDue = subscription.options?.dailyReports && isDailyReportDue(subscription, now);
-    const urgentDue = subscription.options?.urgentAlerts && isUrgentCheckDue(subscription, now);
+    const options = getSubscriptionOptions(subscription);
+    const dailyDue = options.dailyReports && isDailyReportDue(subscription, now);
+    const urgentDue = options.urgentAlerts && isUrgentCheckDue(subscription, now);
+    const historyDue = isHistorySampleDue(subscription, now);
 
-    if (!dailyDue && !urgentDue) {
+    if (!dailyDue && !urgentDue && !historyDue) {
       continue;
     }
 
@@ -718,24 +957,35 @@ async function runMailScheduler() {
       subscription.location.label = formatLocationLabel(payload.location);
       subscription.location.timezoneOffset = payload.location.timezoneOffset || subscription.location.timezoneOffset || 0;
       subscription.location.coordinates = payload.location.coordinates || subscription.location.coordinates;
+      subscription.options = options;
 
-      if (dailyDue) {
+      if (historyDue) {
+        recordWeatherHistory(history, subscription, payload, now);
+        subscription.lastHistorySampleAt = new Date(now).toISOString();
+        historyChanged = true;
+        changed = true;
+      }
+
+      if (dailyDue && mailConfigured) {
+        const deliveryDateKey = getLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
+        const historyDateKey = getPreviousLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
+        const dayHistorySamples = getHistorySamples(history, subscription, historyDateKey);
         const unsubscribeUrl = buildUnsubscribeUrl(null, subscription.token);
         const sent = await sendEmail({
           to: subscription.email,
           subject: `Daily weather report for ${subscription.location.label}`,
-          ...buildDailyReportEmail(subscription, payload, unsubscribeUrl),
+          ...buildDailyReportEmail(subscription, payload, unsubscribeUrl, dayHistorySamples, historyDateKey),
         });
 
         if (sent) {
-          subscription.lastDailyReportDate = getLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
+          subscription.lastDailyReportDate = deliveryDateKey;
           changed = true;
         }
       }
 
-      if (urgentDue) {
+      if (urgentDue && mailConfigured) {
         subscription.lastImportantCheckAt = new Date(now).toISOString();
-        const alerts = buildImportantAlerts(payload);
+        const alerts = buildImportantAlerts(payload, options);
         const signature = getAlertSignature(alerts);
         const sentRecently =
           subscription.lastUrgentSentAt &&
@@ -765,6 +1015,20 @@ async function runMailScheduler() {
   if (changed) {
     await saveMailSubscriptions(subscriptions);
   }
+
+  if (historyChanged) {
+    await saveWeatherHistory(history);
+  }
+}
+
+function getSubscriptionOptions(subscription) {
+  return {
+    dailyReports: parseBooleanOption(subscription.options?.dailyReports, true),
+    urgentAlerts: parseBooleanOption(subscription.options?.urgentAlerts, true),
+    dailyReportTime: normalizeDailyReportTime(subscription.options?.dailyReportTime),
+    alertSensitivity:
+      subscription.options?.alertSensitivity === 'emergency-only' ? 'emergency-only' : 'important',
+  };
 }
 
 function isDailyReportDue(subscription, now) {
@@ -788,6 +1052,19 @@ function isDailyReportDue(subscription, now) {
   return localMinutes >= targetMinutes && subscription.lastDailyReportDate !== localDateKey;
 }
 
+function isHistorySampleDue(subscription, now) {
+  if (!subscription.lastHistorySampleAt) {
+    return true;
+  }
+
+  const lastSampleMs = Date.parse(subscription.lastHistorySampleAt);
+  if (!Number.isFinite(lastSampleMs)) {
+    return true;
+  }
+
+  return now - lastSampleMs >= WEATHER_HISTORY_SAMPLE_INTERVAL_MS;
+}
+
 function isUrgentCheckDue(subscription, now) {
   if (!subscription.lastImportantCheckAt) {
     return true;
@@ -796,12 +1073,13 @@ function isUrgentCheckDue(subscription, now) {
   return now - Date.parse(subscription.lastImportantCheckAt) >= URGENT_ALERT_INTERVAL_MS;
 }
 
-function buildImportantAlerts(payload) {
+function buildImportantAlerts(payload, options = {}) {
   const alerts = [];
   const current = payload.current;
   const today = payload.forecast?.[0];
   const conditionId = Number(current.condition.id || 0);
   const conditionMain = String(current.condition.main || '').toLowerCase();
+  const thresholds = getImportantAlertThresholds(options.alertSensitivity);
 
   if (conditionId >= 200 && conditionId < 300) {
     alerts.push({
@@ -811,7 +1089,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (conditionMain.includes('rain') && Number(current.rainVolume || 0) >= 10) {
+  if (conditionMain.includes('rain') && Number(current.rainVolume || 0) >= thresholds.currentRainVolume) {
     alerts.push({
       code: 'heavy-rain-now',
       title: 'Heavy rain nearby',
@@ -819,7 +1097,11 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (today && today.precipitationProbability >= 80 && Number(today.rainVolume || 0) >= 8) {
+  if (
+    today &&
+    today.precipitationProbability >= thresholds.rainProbability &&
+    Number(today.rainVolume || 0) >= thresholds.forecastRainVolume
+  ) {
     alerts.push({
       code: 'heavy-rain-forecast',
       title: 'High rain chance',
@@ -827,7 +1109,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (Number(current.windSpeed || 0) >= 13.9 || Number(current.windGust || 0) >= 20) {
+  if (Number(current.windSpeed || 0) >= thresholds.windSpeed || Number(current.windGust || 0) >= thresholds.windGust) {
     alerts.push({
       code: 'strong-wind',
       title: 'Strong wind',
@@ -835,7 +1117,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (Number(current.visibility || 0) > 0 && Number(current.visibility) <= 1000) {
+  if (Number(current.visibility || 0) > 0 && Number(current.visibility) <= thresholds.visibility) {
     alerts.push({
       code: 'low-visibility',
       title: 'Low visibility',
@@ -843,7 +1125,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (Number(current.temperature) >= 40) {
+  if (Number(current.temperature) >= thresholds.heat) {
     alerts.push({
       code: 'extreme-heat',
       title: 'Extreme heat',
@@ -851,7 +1133,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (Number(current.temperature) <= 4) {
+  if (Number(current.temperature) <= thresholds.cold) {
     alerts.push({
       code: 'cold-risk',
       title: 'Very cold conditions',
@@ -859,7 +1141,7 @@ function buildImportantAlerts(payload) {
     });
   }
 
-  if (payload.airQuality?.aqi >= 4) {
+  if (payload.airQuality?.aqi >= thresholds.aqi) {
     alerts.push({
       code: 'poor-air-quality',
       title: 'Poor air quality',
@@ -868,6 +1150,34 @@ function buildImportantAlerts(payload) {
   }
 
   return alerts;
+}
+
+function getImportantAlertThresholds(alertSensitivity) {
+  if (alertSensitivity === 'emergency-only') {
+    return {
+      currentRainVolume: 18,
+      forecastRainVolume: 16,
+      rainProbability: 90,
+      windSpeed: 18,
+      windGust: 25,
+      visibility: 600,
+      heat: 43,
+      cold: 2,
+      aqi: 5,
+    };
+  }
+
+  return {
+    currentRainVolume: 10,
+    forecastRainVolume: 8,
+    rainProbability: 80,
+    windSpeed: 13.9,
+    windGust: 20,
+    visibility: 1000,
+    heat: 40,
+    cold: 4,
+    aqi: 4,
+  };
 }
 
 function getAlertSignature(alerts) {
@@ -889,7 +1199,7 @@ function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {
     `Oxygen Weather mail alerts are enabled for ${subscription.location.label}.`,
     `Current weather: ${current.condition.description}, ${current.temperature} C.`,
     'You will receive important weather alerts only when notable conditions are detected.',
-    'A daily report with the full day and upcoming forecast will be sent around 12:00 AM local time.',
+    `A full-day history report with the after-midnight outlook will be sent around ${subscription.options?.dailyReportTime || '00:00'} local time.`,
     `Unsubscribe: ${unsubscribeUrl}`,
   ].join('\n');
 
@@ -903,7 +1213,8 @@ function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {
         <p>Current weather: <strong>${escapeHtml(current.condition.description)}</strong>, ${escapeHtml(current.temperature)} C.</p>
         <ul>
           <li>Important weather alerts only when notable conditions are detected.</li>
-          <li>One daily report around <strong>12:00 AM</strong> local time.</li>
+          <li>One full-day history report around <strong>${escapeHtml(subscription.options?.dailyReportTime || '00:00')}</strong> local time.</li>
+          <li>After-midnight hourly outlook and upcoming forecast included.</li>
           <li>No repeated spam messages.</li>
         </ul>
         <p class="note">For dangerous conditions, always follow official local weather and emergency guidance.</p>
@@ -913,8 +1224,44 @@ function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {
   };
 }
 
-function buildDailyReportEmail(subscription, payload, unsubscribeUrl) {
+function buildDailyReportEmail(
+  subscription,
+  payload,
+  unsubscribeUrl,
+  historySamples = [],
+  reportDateKey = '',
+  isTest = false
+) {
   const current = payload.current;
+  const historySummary = summarizeWeatherHistory(historySamples);
+  const titlePrefix = isTest ? 'Test daily report' : 'Daily report';
+  const historyTitle = reportDateKey ? `Full day history: ${reportDateKey}` : 'Full day history';
+  const historyRows = historySamples.length
+    ? historySamples
+      .map((sample) => {
+        return `<tr>
+          <td>${escapeHtml(sample.localTime || '--')}</td>
+          <td>${escapeHtml(sample.condition || 'Weather')}</td>
+          <td>${escapeHtml(formatOptionalNumber(sample.temperature, ' C'))}</td>
+          <td>${escapeHtml(formatOptionalNumber(sample.humidity, '%'))}</td>
+          <td>${escapeHtml(formatOptionalNumber(sample.windSpeed, ' m/s'))}</td>
+          <td>${escapeHtml(formatOptionalNumber(sample.rainVolume, ' mm'))}</td>
+        </tr>`;
+      })
+      .join('')
+    : `<tr><td colspan="6">History tracking has started. The next midnight report will include the full day samples collected by the server.</td></tr>`;
+  const hourlyRows = (payload.hourly || [])
+    .slice(0, 8)
+    .map((hour) => {
+      return `<tr>
+        <td>${escapeHtml(hour.localHour)}:00</td>
+        <td>${escapeHtml(hour.condition.description)}</td>
+        <td>${escapeHtml(formatOptionalNumber(hour.temperature, ' C'))}</td>
+        <td>${escapeHtml(hour.precipitationProbability)}%</td>
+        <td>${escapeHtml(formatOptionalNumber(hour.windSpeed, ' m/s'))}</td>
+      </tr>`;
+    })
+    .join('');
   const forecastRows = (payload.forecast || [])
     .map((day) => {
       return `<tr>
@@ -925,15 +1272,33 @@ function buildDailyReportEmail(subscription, payload, unsubscribeUrl) {
       </tr>`;
     })
     .join('');
+  const textHistory = historySummary
+    ? [
+      `${historyTitle}`,
+      `Samples: ${historySummary.samples}`,
+      `Temperature: ${historySummary.minTemp} C to ${historySummary.maxTemp} C, average ${historySummary.avgTemp} C.`,
+      `Average humidity: ${historySummary.avgHumidity}%. Peak wind: ${historySummary.peakWind} m/s.`,
+      `Rain total: ${historySummary.rainTotal} mm. Main condition: ${historySummary.mainCondition}.`,
+    ].join('\n')
+    : `${historyTitle}\nHistory tracking has started. The next midnight report will include the full day samples collected by the server.`;
+  const textHourly = (payload.hourly || [])
+    .slice(0, 8)
+    .map((hour) => `${hour.localHour}:00: ${hour.condition.description}, ${hour.temperature} C, rain chance ${hour.precipitationProbability}%, wind ${hour.windSpeed} m/s`)
+    .join('\n');
   const textForecast = (payload.forecast || [])
     .map((day) => `${day.date}: ${day.condition.description}, ${day.tempMax} C / ${day.tempMin} C, rain chance ${day.precipitationProbability}%`)
     .join('\n');
 
   return {
     text: [
-      `Daily weather report for ${subscription.location.label}`,
+      `${titlePrefix} for ${subscription.location.label}`,
       `Now: ${current.condition.description}, ${current.temperature} C, feels like ${current.feelsLike} C.`,
       `Humidity: ${current.humidity}%. Wind: ${current.windSpeed} m/s. Pressure: ${current.pressure} hPa.`,
+      '',
+      textHistory,
+      '',
+      'After midnight outlook:',
+      textHourly,
       '',
       'Upcoming forecast:',
       textForecast,
@@ -941,21 +1306,81 @@ function buildDailyReportEmail(subscription, payload, unsubscribeUrl) {
       `Unsubscribe: ${unsubscribeUrl}`,
     ].join('\n'),
     html: baseEmailTemplate({
-      title: `Daily report: ${escapeHtml(subscription.location.label)}`,
-      preheader: `Current and upcoming weather for ${escapeHtml(subscription.location.label)}`,
+      title: `${titlePrefix}: ${escapeHtml(subscription.location.label)}`,
+      preheader: `Full day history and upcoming weather for ${escapeHtml(subscription.location.label)}`,
       body: `
         <p><strong>Now:</strong> ${escapeHtml(current.condition.description)}, ${escapeHtml(current.temperature)} C, feels like ${escapeHtml(current.feelsLike)} C.</p>
         <p><strong>Humidity:</strong> ${escapeHtml(current.humidity)}% &nbsp; <strong>Wind:</strong> ${escapeHtml(current.windSpeed)} m/s &nbsp; <strong>Pressure:</strong> ${escapeHtml(current.pressure)} hPa</p>
+        <h2>${escapeHtml(historyTitle)}</h2>
+        ${historySummary
+          ? `<p><strong>${escapeHtml(historySummary.samples)} samples:</strong> ${escapeHtml(historySummary.minTemp)} C to ${escapeHtml(historySummary.maxTemp)} C, average ${escapeHtml(historySummary.avgTemp)} C. Average humidity ${escapeHtml(historySummary.avgHumidity)}%, peak wind ${escapeHtml(historySummary.peakWind)} m/s, rain total ${escapeHtml(historySummary.rainTotal)} mm.</p>`
+          : '<p>History tracking has started. The next midnight report will include the full day samples collected by the server.</p>'
+        }
+        <table>
+          <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Humidity</th><th>Wind</th><th>Rain</th></tr></thead>
+          <tbody>${historyRows}</tbody>
+        </table>
+        <h2>After midnight outlook</h2>
+        <table>
+          <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Rain chance</th><th>Wind</th></tr></thead>
+          <tbody>${hourlyRows}</tbody>
+        </table>
         <h2>Upcoming forecast</h2>
         <table>
           <thead><tr><th>Date</th><th>Condition</th><th>Temp</th><th>Rain chance</th></tr></thead>
           <tbody>${forecastRows}</tbody>
         </table>
-        <p class="note">You are receiving one daily report around 12:00 AM local time.</p>
+        <p class="note">You are receiving one daily report around ${escapeHtml(subscription.options?.dailyReportTime || '00:00')} local time. Important alerts are sent only when notable weather behavior is detected.</p>
         <p><a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe from these alerts</a></p>
       `,
     }),
   };
+}
+
+function summarizeWeatherHistory(samples) {
+  if (!samples.length) {
+    return null;
+  }
+
+  const temperatures = getFiniteSampleValues(samples, 'temperature');
+  const humidity = getFiniteSampleValues(samples, 'humidity');
+  const wind = getFiniteSampleValues(samples, 'windSpeed');
+  const rain = getFiniteSampleValues(samples, 'rainVolume');
+
+  return {
+    samples: samples.length,
+    minTemp: roundOrDash(temperatures.length ? Math.min(...temperatures) : NaN),
+    maxTemp: roundOrDash(temperatures.length ? Math.max(...temperatures) : NaN),
+    avgTemp: roundOrDash(temperatures.length ? average(temperatures) : NaN),
+    avgHumidity: roundOrDash(humidity.length ? average(humidity) : NaN, 0),
+    peakWind: roundOrDash(wind.length ? Math.max(...wind) : NaN),
+    rainTotal: roundOrDash(sum(rain)),
+    mainCondition: getMostCommonCondition(samples),
+  };
+}
+
+function getFiniteSampleValues(samples, key) {
+  return samples
+    .map((sample) => Number(sample[key]))
+    .filter(Number.isFinite);
+}
+
+function getMostCommonCondition(samples) {
+  const counts = samples.reduce((map, sample) => {
+    const condition = sample.condition || 'Weather';
+    map.set(condition, (map.get(condition) || 0) + 1);
+    return map;
+  }, new Map());
+  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  return sorted[0]?.[0] || 'Weather';
+}
+
+function formatOptionalNumber(value, suffix = '') {
+  return Number.isFinite(Number(value)) ? `${value}${suffix}` : '--';
+}
+
+function roundOrDash(value, places = 1) {
+  return Number.isFinite(value) ? round(value, places) : '--';
 }
 
 function buildUrgentAlertEmail(subscription, payload, alerts, unsubscribeUrl) {
