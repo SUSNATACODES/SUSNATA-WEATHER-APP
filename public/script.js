@@ -1,14 +1,22 @@
 const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
 const LOGIN_EMAIL_KEY = 'oxygen-weather-login-email';
+const USER_PROFILE_KEY = 'oxygen-weather-user-profile';
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const MAX_CANVAS_DPR = 1.5;
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
+const cachedUserProfile = loadUserProfile();
 
 const state = {
     unit: 'metric',
     weather: null,
     recentSearches: loadRecentSearches(),
-    loginEmail: localStorage.getItem(LOGIN_EMAIL_KEY) || '',
+    loginEmail: cachedUserProfile?.email || localStorage.getItem(LOGIN_EMAIL_KEY) || '',
+    userProfile: cachedUserProfile,
+    authMode: 'signin',
+    googleClientId: '',
+    googleReady: false,
     clockTimer: null,
     autoRefreshTimer: null,
     countdownTimer: null,
@@ -43,6 +51,20 @@ const dom = {
     loginPanel: document.getElementById('loginPanel'),
     loginForm: document.getElementById('loginForm'),
     loginEmail: document.getElementById('loginEmail'),
+    loginNameWrap: document.getElementById('loginNameWrap'),
+    loginName: document.getElementById('loginName'),
+    authSubtitle: document.getElementById('authSubtitle'),
+    authModeToggle: document.querySelector('.auth-mode-toggle'),
+    authModeButtons: Array.from(document.querySelectorAll('[data-auth-mode]')),
+    loginSubmitBtn: document.getElementById('loginSubmitBtn'),
+    authDivider: document.querySelector('.auth-divider'),
+    googleLoginBtn: document.getElementById('googleLoginBtn'),
+    profileCard: document.getElementById('profileCard'),
+    profilePhoto: document.getElementById('profilePhoto'),
+    profileName: document.getElementById('profileName'),
+    profileEmail: document.getElementById('profileEmail'),
+    profileLabel: document.getElementById('profileLabel'),
+    logoutBtn: document.getElementById('logoutBtn'),
     loginCloseBtn: document.getElementById('loginCloseBtn'),
     loginStatus: document.getElementById('loginStatus'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -106,8 +128,10 @@ function bootApp() {
     ensureDynamicPanels();
     syncWeatherCanvas('clouds');
     wireEvents();
+    renderAuthState();
     renderRecentSearches();
     renderIcons();
+    loadAuthConfig();
     loadMailAlertStatus();
     initializeWeather();
 }
@@ -162,6 +186,20 @@ function wireEvents() {
     dom.loginForm.addEventListener('submit', (event) => {
         event.preventDefault();
         saveLoginEmail();
+    });
+
+    dom.authModeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            setAuthMode(button.dataset.authMode);
+        });
+    });
+
+    dom.googleLoginBtn.addEventListener('click', () => {
+        handleGoogleLoginClick();
+    });
+
+    dom.logoutBtn.addEventListener('click', () => {
+        logoutUser();
     });
 
     dom.mailAlertsForm.addEventListener('submit', (event) => {
@@ -294,6 +332,10 @@ function wireEvents() {
 }
 
 function ensureDynamicPanels() {
+    if (dom.weatherDashboard && dom.mailAlertsPanel) {
+        dom.weatherDashboard.after(dom.mailAlertsPanel);
+    }
+
     if (!dom.smartBriefPanel) {
         const panel = document.createElement('section');
         panel.className = 'smart-brief-panel';
@@ -309,7 +351,7 @@ function ensureDynamicPanels() {
             </div>
             <div class="smart-brief-grid" id="smartBriefGrid"></div>
         `;
-        dom.mailAlertsPanel.before(panel);
+        dom.weatherDashboard.before(panel);
         dom.smartBriefPanel = panel;
         dom.smartBriefGrid = panel.querySelector('#smartBriefGrid');
         dom.autoRefreshLabel = panel.querySelector('#autoRefreshLabel');
@@ -370,6 +412,7 @@ function openLoginPanel() {
     dom.loginPanel.hidden = false;
     dom.loginPanel.setAttribute('aria-hidden', 'false');
     document.body.classList.add('has-login-panel');
+    renderAuthState();
 
     window.requestAnimationFrame(() => {
         dom.loginPanel.classList.add('is-open');
@@ -377,7 +420,13 @@ function openLoginPanel() {
     });
 
     window.setTimeout(() => {
-        dom.loginEmail.focus({ preventScroll: true });
+        if (state.userProfile) {
+            dom.logoutBtn.focus({ preventScroll: true });
+        } else if (state.authMode === 'signup') {
+            dom.loginName.focus({ preventScroll: true });
+        } else {
+            dom.loginEmail.focus({ preventScroll: true });
+        }
     }, 220);
 }
 
@@ -397,8 +446,30 @@ function closeLoginPanel() {
     dom.loginOpenBtn.focus({ preventScroll: true });
 }
 
+function setAuthMode(mode) {
+    state.authMode = mode === 'signup' ? 'signup' : 'signin';
+    dom.loginPanel.dataset.authMode = state.authMode;
+    dom.loginNameWrap.hidden = state.authMode !== 'signup';
+    dom.loginName.required = state.authMode === 'signup';
+    document.getElementById('loginTitle').textContent =
+        state.authMode === 'signup' ? 'Create your profile' : 'Welcome back';
+    dom.authSubtitle.textContent =
+        state.authMode === 'signup'
+            ? 'Create an Oxygen profile for remembered weather tools and Gmail reminders.'
+            : 'Sign in to keep your profile, Gmail reminders, and weather settings ready.';
+    dom.loginSubmitBtn.querySelector('span').textContent =
+        state.authMode === 'signup' ? 'Create account' : 'Continue';
+
+    dom.authModeButtons.forEach((button) => {
+        const isActive = button.dataset.authMode === state.authMode;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
+    });
+}
+
 function saveLoginEmail() {
     const email = dom.loginEmail.value.trim().toLowerCase();
+    const name = dom.loginName.value.trim();
 
     if (!email || !dom.loginEmail.checkValidity()) {
         showLoginStatus('Enter a valid email address.');
@@ -406,19 +477,251 @@ function saveLoginEmail() {
         return;
     }
 
-    state.loginEmail = email;
+    if (state.authMode === 'signup' && !name) {
+        showLoginStatus('Enter your name to create the profile.');
+        dom.loginName.focus();
+        return;
+    }
+
+    const profile = createUserProfile({
+        email,
+        name: name || getNameFromEmail(email),
+        provider: state.authMode === 'signup' ? 'email-signup' : 'email',
+    });
+    saveUserProfile(profile);
     localStorage.setItem(LOGIN_EMAIL_KEY, email);
     dom.alertEmail.value = email;
-    showLoginStatus('Login saved. Gmail alert email is ready.');
+    showLoginStatus(`Welcome ${profile.name}. Your session is remembered for 7 days.`);
 
     window.setTimeout(() => {
         closeLoginPanel();
-    }, 900);
+    }, 1000);
 }
 
 function showLoginStatus(message) {
     dom.loginStatus.textContent = message;
     dom.loginStatus.hidden = false;
+}
+
+async function loadAuthConfig() {
+    try {
+        const response = await fetch('/auth/config');
+        const config = await response.json().catch(() => null);
+        state.googleClientId = config?.googleClientId || '';
+
+        if (state.googleClientId) {
+            await loadGoogleIdentityScript();
+            initializeGoogleSignIn();
+        }
+    } catch {
+        state.googleClientId = '';
+    }
+}
+
+function loadGoogleIdentityScript() {
+    if (window.google?.accounts?.id) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+        const existingScript = document.querySelector(`script[src="${GOOGLE_IDENTITY_SCRIPT}"]`);
+        if (existingScript) {
+            existingScript.addEventListener('load', resolve, { once: true });
+            existingScript.addEventListener('error', reject, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = GOOGLE_IDENTITY_SCRIPT;
+        script.async = true;
+        script.defer = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.append(script);
+    });
+}
+
+function initializeGoogleSignIn() {
+    if (!window.google?.accounts?.id || !state.googleClientId || state.googleReady) {
+        return;
+    }
+
+    window.google.accounts.id.initialize({
+        client_id: state.googleClientId,
+        callback: handleGoogleCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+    });
+    state.googleReady = true;
+}
+
+function handleGoogleLoginClick() {
+    if (state.googleReady && window.google?.accounts?.id) {
+        window.google.accounts.id.prompt();
+        showLoginStatus('Google sign-in is opening.');
+        return;
+    }
+
+    showLoginStatus('Google login needs GOOGLE_CLIENT_ID on Render.');
+}
+
+function handleGoogleCredential(response) {
+    const payload = decodeGoogleJwt(response?.credential);
+    if (!payload?.email) {
+        showLoginStatus('Google sign-in could not read your profile.');
+        return;
+    }
+
+    const expiresAt = Number(payload.exp) * 1000;
+    const profile = createUserProfile({
+        email: payload.email,
+        name: payload.name || getNameFromEmail(payload.email),
+        picture: payload.picture || '',
+        provider: 'google',
+        expiresAt: Number.isFinite(expiresAt)
+            ? Math.min(expiresAt, Date.now() + SESSION_DURATION_MS)
+            : Date.now() + SESSION_DURATION_MS,
+    });
+    saveUserProfile(profile);
+    localStorage.setItem(LOGIN_EMAIL_KEY, profile.email);
+    dom.alertEmail.value = profile.email;
+    showLoginStatus(`Welcome ${profile.name}. Google profile connected.`);
+
+    window.setTimeout(() => {
+        closeLoginPanel();
+    }, 1000);
+}
+
+function decodeGoogleJwt(token) {
+    if (!token || typeof token !== 'string') {
+        return null;
+    }
+
+    try {
+        const payload = token.split('.')[1];
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const json = decodeURIComponent(
+            atob(normalized)
+                .split('')
+                .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+                .join('')
+        );
+        return JSON.parse(json);
+    } catch {
+        return null;
+    }
+}
+
+function createUserProfile({ email, name, picture = '', provider = 'email', expiresAt = Date.now() + SESSION_DURATION_MS }) {
+    return {
+        email,
+        name,
+        picture,
+        provider,
+        expiresAt,
+        signedInAt: new Date().toISOString(),
+    };
+}
+
+function saveUserProfile(profile) {
+    state.userProfile = profile;
+    state.loginEmail = profile.email;
+    localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profile));
+    renderAuthState();
+}
+
+function loadUserProfile() {
+    try {
+        const rawProfile = localStorage.getItem(USER_PROFILE_KEY);
+        if (!rawProfile) {
+            return null;
+        }
+
+        const profile = JSON.parse(rawProfile);
+        if (!profile?.email || !profile?.expiresAt || Date.now() > Number(profile.expiresAt)) {
+            localStorage.removeItem(USER_PROFILE_KEY);
+            return null;
+        }
+
+        return profile;
+    } catch {
+        localStorage.removeItem(USER_PROFILE_KEY);
+        return null;
+    }
+}
+
+function logoutUser() {
+    state.userProfile = null;
+    localStorage.removeItem(USER_PROFILE_KEY);
+    renderAuthState();
+    showLoginStatus('Signed out. Your session has ended.');
+}
+
+function renderAuthState() {
+    const profile = state.userProfile;
+    setAuthMode(state.authMode);
+
+    if (profile) {
+        const initials = getInitials(profile.name || profile.email);
+        dom.loginOpenBtn.classList.add('is-profile');
+        dom.loginOpenBtn.title = profile.name;
+        dom.loginOpenBtn.setAttribute('aria-label', `Profile for ${profile.name}`);
+        dom.loginOpenBtn.innerHTML = profile.picture
+            ? `<img class="header-profile-photo" src="${escapeHtml(profile.picture)}" alt="">`
+            : `<span class="header-profile-initials">${escapeHtml(initials)}</span>`;
+
+        dom.profileCard.hidden = false;
+        dom.profileName.textContent = profile.name;
+        dom.profileEmail.textContent = profile.email;
+        dom.profileLabel.textContent = profile.provider === 'google' ? 'Google profile' : 'Oxygen profile';
+        document.getElementById('loginTitle').textContent = `Welcome, ${profile.name}`;
+        dom.authSubtitle.textContent = 'Your profile is active and your session is remembered for 7 days.';
+        dom.authModeToggle.hidden = true;
+        dom.loginForm.hidden = true;
+        dom.authDivider.hidden = true;
+        dom.googleLoginBtn.hidden = true;
+        dom.profilePhoto.hidden = false;
+        if (profile.picture) {
+            dom.profilePhoto.src = profile.picture;
+            dom.profilePhoto.alt = profile.name;
+        } else {
+            dom.profilePhoto.removeAttribute('src');
+            dom.profilePhoto.alt = '';
+            dom.profilePhoto.hidden = true;
+        }
+        dom.loginEmail.value = profile.email;
+        dom.alertEmail.value = profile.email;
+        showLoginStatus(`Special welcome to you, ${profile.name}.`, 'success');
+    } else {
+        dom.loginOpenBtn.classList.remove('is-profile');
+        dom.loginOpenBtn.title = 'Login';
+        dom.loginOpenBtn.setAttribute('aria-label', 'Open login');
+        dom.loginOpenBtn.innerHTML = '<i data-lucide="user-round"></i>';
+        dom.profileCard.hidden = true;
+        dom.authModeToggle.hidden = false;
+        dom.loginForm.hidden = false;
+        dom.authDivider.hidden = false;
+        dom.googleLoginBtn.hidden = false;
+        dom.loginStatus.hidden = true;
+    }
+
+    renderIcons();
+}
+
+function getNameFromEmail(email) {
+    return email
+        .split('@')[0]
+        .replace(/[._-]+/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getInitials(value) {
+    return String(value)
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() || '')
+        .join('') || 'O';
 }
 
 function openEarthquakeMonitor() {

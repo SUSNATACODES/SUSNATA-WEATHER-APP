@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=midnight-mail-history-20260602">
+    <link rel="stylesheet" href="style.css?v=profile-auth-reminder-20260602">
 </head>
 <body>
     <div class="weather-effects" aria-hidden="true"></div>
@@ -297,16 +297,58 @@
     </div>
 
     <div class="login-backdrop" id="loginBackdrop" hidden></div>
-    <section class="signup-login" id="loginPanel" aria-labelledby="loginTitle" aria-hidden="true" hidden>
+    <section class="signup-login auth-panel" id="loginPanel" aria-labelledby="loginTitle" aria-hidden="true" hidden>
         <button class="signup-close" id="loginCloseBtn" type="button" aria-label="Close login">&times;</button>
-        <div class="signupForm">
-            <h2 id="loginTitle">Sign up now!</h2>
-            <form id="loginForm">
-                <span>
+        <div class="auth-visual" aria-hidden="true">
+            <span class="auth-orbit auth-orbit-one"></span>
+            <span class="auth-orbit auth-orbit-two"></span>
+            <span class="auth-glow"></span>
+            <i data-lucide="cloud-sun"></i>
+        </div>
+        <div class="signupForm auth-card">
+            <div class="auth-heading">
+                <p class="eyebrow">Oxygen Account</p>
+                <h2 id="loginTitle">Welcome back</h2>
+                <p id="authSubtitle">Sign in to keep your profile, Gmail reminders, and weather settings ready.</p>
+            </div>
+
+            <div class="auth-mode-toggle" role="tablist" aria-label="Account mode">
+                <button class="auth-mode-button is-active" type="button" role="tab" aria-selected="true" data-auth-mode="signin">Sign in</button>
+                <button class="auth-mode-button" type="button" role="tab" aria-selected="false" data-auth-mode="signup">Sign up</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <label class="auth-field" id="loginNameWrap" for="loginName" hidden>
+                    <span>Name</span>
+                    <input id="loginName" type="text" name="name" placeholder="Your name" autocomplete="name">
+                </label>
+                <label class="auth-field" for="loginEmail">
+                    <span>Email</span>
                     <input id="loginEmail" type="email" name="email" placeholder="youremail@example.com" autocomplete="email" required>
-                    <input type="submit" value="Login">
-                </span>
+                </label>
+                <button class="auth-submit" id="loginSubmitBtn" type="submit">
+                    <i data-lucide="log-in"></i>
+                    <span>Continue</span>
+                </button>
             </form>
+
+            <div class="auth-divider"><span>or</span></div>
+
+            <button class="google-login-button" id="googleLoginBtn" type="button">
+                <span class="google-mark">G</span>
+                <span>Continue with Google</span>
+            </button>
+
+            <article class="profile-card" id="profileCard" hidden>
+                <img id="profilePhoto" alt="">
+                <div>
+                    <span id="profileLabel">Signed in</span>
+                    <strong id="profileName">Oxygen user</strong>
+                    <small id="profileEmail">you@example.com</small>
+                </div>
+                <button id="logoutBtn" type="button">Sign out</button>
+            </article>
+
             <p class="login-status" id="loginStatus" role="status" hidden></p>
         </div>
     </section>
@@ -318,7 +360,7 @@
         </button>
     </div>
 
-    <script src="script.js?v=midnight-mail-history-20260602" defer></script>
+    <script src="script.js?v=profile-auth-reminder-20260602" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer onload="window.renderIcons && window.renderIcons()"></script>
 </body>
 </html>

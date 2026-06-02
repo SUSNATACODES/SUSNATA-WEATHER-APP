@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'midnight-mail-history-20260602';
+const UI_BUILD = 'profile-auth-reminder-20260602';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -95,6 +95,13 @@ app.get('/weather', async (req, res) => {
   } catch (error) {
     sendWeatherError(res, error);
   }
+});
+
+app.get('/auth/config', (req, res) => {
+  res.json({
+    ok: true,
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  });
 });
 
 app.get('/mail-alerts/status', async (req, res) => {

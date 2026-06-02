@@ -18,7 +18,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Air quality panel when provider data is available
 - Celsius/Fahrenheit unit switching without extra API calls
 - Recent searches stored in the browser
-- Animated login/signup popup styled after the Oxygen downloaded form
+- Professional remembered login/profile panel with sign-in, sign-up, 7-day session expiry, and optional Google Sign-In
 - Gmail/SMTP weather reminders with important alerts, hourly history tracking, one 12:00 AM full-day report, after-midnight outlook, test emails, and unsubscribe links
 - In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
 - Server-side caching, request timeouts, and cleaner API errors
@@ -62,6 +62,14 @@ For Gmail, create an app password in your Google account and use that as `MAIL_P
 The website will show a Gmail server status message. If `MAIL_USER` and `MAIL_PASS` are missing on Render, subscriptions can be saved but emails cannot be delivered yet.
 For exact midnight delivery, use an always-on Render service or an external uptime/cron ping; free sleeping services can only run the scheduler while the server is awake.
 
+Optional Google Sign-In:
+
+```env
+GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
+```
+
+Create a Google OAuth web client and add the Render domain as an authorized JavaScript origin before enabling this.
+
 5. Start the server:
 
 ```bash
@@ -82,6 +90,7 @@ MAIL_PASS=your_gmail_app_password
 MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=465
+GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
 ```
 
 Render will run:
