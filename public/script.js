@@ -36,6 +36,10 @@ const state = {
         dpr: 1,
         lastFrame: 0,
         phase: 0,
+        pointerX: 0.5,
+        pointerY: 0.24,
+        pointerTargetX: 0.5,
+        pointerTargetY: 0.24,
     },
     lastRequest: {
         params: { city: DEFAULT_CITY },
@@ -388,10 +392,18 @@ function wireEvents() {
         }
     });
 
+    window.addEventListener('pointermove', updateBackgroundPointer, { passive: true });
+
     window.addEventListener('resize', debounce(() => {
         resizeWeatherCanvas();
         seedWeatherCanvas(state.background.mood);
     }, 160));
+}
+
+function updateBackgroundPointer(event) {
+    const background = state.background;
+    background.pointerTargetX = Math.min(1, Math.max(0, event.clientX / Math.max(1, window.innerWidth)));
+    background.pointerTargetY = Math.min(1, Math.max(0, event.clientY / Math.max(1, window.innerHeight)));
 }
 
 function ensureDynamicPanels() {
@@ -2500,14 +2512,32 @@ function drawWeatherCanvas(timestamp) {
 }
 
 function drawCanvasAtmosphere(ctx, width, height, phase, mood) {
-    const glowX = width * (0.52 + Math.sin(phase * 0.9) * 0.18);
-    const glowY = height * (0.22 + Math.cos(phase * 0.7) * 0.08);
+    const background = state.background;
+    background.pointerX += (background.pointerTargetX - background.pointerX) * 0.035;
+    background.pointerY += (background.pointerTargetY - background.pointerY) * 0.035;
+
+    const glowX = width * (background.pointerX * 0.62 + 0.18 + Math.sin(phase * 0.9) * 0.08);
+    const glowY = height * (background.pointerY * 0.46 + 0.08 + Math.cos(phase * 0.7) * 0.05);
     const glow = ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, Math.max(width, height) * 0.72);
     glow.addColorStop(0, getCanvasGlow(mood, 0.24));
     glow.addColorStop(0.44, getCanvasGlow(mood, 0.08));
     glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
+
+    const focusGlow = ctx.createRadialGradient(
+        width * background.pointerX,
+        height * background.pointerY,
+        0,
+        width * background.pointerX,
+        height * background.pointerY,
+        Math.max(width, height) * 0.34
+    );
+    focusGlow.addColorStop(0, getCanvasGlow(mood, 0.18));
+    focusGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = focusGlow;
+    ctx.fillRect(0, 0, width, height);
+
     drawCanvasAuroraBands(ctx, width, height, phase, mood);
 
     ctx.save();
