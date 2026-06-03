@@ -20,6 +20,7 @@ const bodyMarkup = extractBodyMarkup(html)
     `<iframe id="earthquakeFrame" title="Live Earthquake Monitor" src="about:blank" srcdoc="${escapeAttribute(earthquakeSrcdoc)}" data-src="about:blank"></iframe>`
   )
   .trim();
+const bloggerBootScript = buildBloggerBootScript(bodyMarkup, script);
 
 const bloggerSkin = `
 html,
@@ -67,14 +68,9 @@ ${cdata(css)}
 </head>
 <body>
   <div id='oxygenWeatherBloggerRoot'></div>
-  <script><![CDATA[
-    window.OXYGEN_WEATHER_API_BASE = '${API_BASE_URL}';
-    window.OXYGEN_WEATHER_PUBLIC_URL = '${PUBLIC_APP_URL}';
-    document.getElementById('oxygenWeatherBloggerRoot').innerHTML = \`${escapeTemplateLiteral(bodyMarkup)}\`;
-  ]]></script>
-  <script><![CDATA[
-${cdata(script)}
-  ]]></script>
+  <script type='text/javascript'>
+${bloggerBootScript}
+  </script>
   <script defer='defer' onload='window.renderIcons &amp;&amp; window.renderIcons()' src='https://unpkg.com/lucide@latest'></script>
   <b:section class='blogger-system' id='blogger-system' maxwidgets='1' showaddelement='false'/>
 </body>
@@ -112,21 +108,41 @@ function buildEarthquakeSrcdoc() {
 </head>
 <body>
 ${body}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/topojson.v3.min.js"></script>
 <script>${earthquakeScript.replace(/<\/script/gi, '<\\/script')}</script>
 </body>
 </html>`;
+}
+
+function buildBloggerBootScript(markup, appScript) {
+  return `(function () {
+    var oxygenMarkup = ${safeJsString(markup)};
+    var oxygenAppScript = ${safeJsString(`${appScript}\n//# sourceURL=oxygen-weather-embedded.js`)};
+    window.OXYGEN_WEATHER_API_BASE = ${safeJsString(API_BASE_URL)};
+    window.OXYGEN_WEATHER_PUBLIC_URL = ${safeJsString(PUBLIC_APP_URL)};
+    var oxygenRoot = document.getElementById('oxygenWeatherBloggerRoot');
+    if (oxygenRoot) {
+      oxygenRoot.innerHTML = oxygenMarkup;
+    }
+    var oxygenScriptNode = document.createElement('script');
+    oxygenScriptNode.type = 'text/javascript';
+    oxygenScriptNode.text = oxygenAppScript;
+    document.body.appendChild(oxygenScriptNode);
+  }());`;
 }
 
 function cdata(value) {
   return String(value).replace(/]]>/g, ']]]]><![CDATA[>');
 }
 
-function escapeTemplateLiteral(value) {
-  return String(value)
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\$\{/g, '\\${')
-    .replace(/<\/script/gi, '<\\/script');
+function safeJsString(value) {
+  return JSON.stringify(String(value))
+    .replace(/</g, '\\u003C')
+    .replace(/>/g, '\\u003E')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 }
 
 function escapeAttribute(value) {
