@@ -6,6 +6,7 @@ const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const MAX_CANVAS_DPR = 1.5;
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
+const API_BASE_URL = String(window.OXYGEN_WEATHER_API_BASE || '').replace(/\/$/, '');
 const cachedUserProfile = loadUserProfile();
 
 const state = {
@@ -133,6 +134,7 @@ function bootApp() {
     renderIcons();
     loadAuthConfig();
     loadMailAlertStatus();
+    handleUnsubscribeRequest();
     initializeWeather();
 }
 
@@ -388,6 +390,10 @@ function debounce(callback, delay) {
     };
 }
 
+function apiUrl(path) {
+    return `${API_BASE_URL}${path}`;
+}
+
 function goHome() {
     dom.cityInput.value = '';
     loadWeather({ city: DEFAULT_CITY }, { label: DEFAULT_CITY, saveRecent: false });
@@ -505,7 +511,7 @@ function showLoginStatus(message) {
 
 async function loadAuthConfig() {
     try {
-        const response = await fetch('/auth/config');
+        const response = await fetch(apiUrl('/auth/config'));
         const config = await response.json().catch(() => null);
         state.googleClientId = config?.googleClientId || '';
 
@@ -768,7 +774,7 @@ function fillMailLocationFromCurrentWeather() {
 
 async function loadMailAlertStatus() {
     try {
-        const response = await fetch('/mail-alerts/status');
+        const response = await fetch(apiUrl('/mail-alerts/status'));
         const data = await response.json().catch(() => null);
 
         if (!response.ok || !data) {
@@ -778,6 +784,33 @@ async function loadMailAlertStatus() {
         showMailServerStatus(data.message, data.mailConfigured ? 'success' : 'warning');
     } catch {
         showMailServerStatus('Mail server status could not be checked yet.', 'warning');
+    }
+}
+
+async function handleUnsubscribeRequest() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('unsubscribe');
+    if (!token) {
+        return;
+    }
+
+    focusMailAlerts();
+    showMailAlertsStatus('Turning off this mail alert subscription.', 'info');
+
+    try {
+        const response = await fetch(apiUrl(`/mail-alerts/unsubscribe?token=${encodeURIComponent(token)}`));
+        const message = response.ok
+            ? 'Mail alerts are turned off for this subscription.'
+            : 'This subscription was not found or is already inactive.';
+        showMailAlertsStatus(message, response.ok ? 'success' : 'error');
+    } catch {
+        showMailAlertsStatus('Could not reach the mail alert server right now.', 'error');
+    } finally {
+        params.delete('unsubscribe');
+        const cleanQuery = params.toString();
+        const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+        loadMailAlertStatus();
     }
 }
 
@@ -801,7 +834,7 @@ async function subscribeMailAlerts() {
     showMailAlertsStatus('Saving mail alerts.', 'info');
 
     try {
-        const response = await fetch('/mail-alerts/subscribe', {
+        const response = await fetch(apiUrl('/mail-alerts/subscribe'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -852,7 +885,7 @@ async function sendMailAlertsTest() {
     showMailAlertsStatus('Sending a test weather report.', 'info');
 
     try {
-        const response = await fetch('/mail-alerts/test', {
+        const response = await fetch(apiUrl('/mail-alerts/test'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -973,7 +1006,7 @@ async function loadWeather(params, options = {}) {
     hideStatus();
 
     try {
-        const response = await fetch(`/weather?${query.toString()}`);
+        const response = await fetch(apiUrl(`/weather?${query.toString()}`));
         const data = await response.json().catch(() => ({
             error: 'The server returned an unexpected response.',
         }));

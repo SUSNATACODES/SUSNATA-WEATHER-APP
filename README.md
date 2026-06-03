@@ -22,7 +22,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Gmail/SMTP weather reminders with important alerts, hourly history tracking, one 12:00 AM full-day report, after-midnight outlook, test emails, and unsubscribe links
 - In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
 - Server-side caching, request timeouts, and cleaner API errors
-- Blogger XML wrapper for publishing the live app on oxygen-weather.blogspot.com
+- Blogger XML full-code theme for publishing the app on oxygen-weather.blogspot.com
 - Render deployment support
 
 ## Local Setup
@@ -46,7 +46,7 @@ cp .env.example .env
 ```env
 API_KEY=your_openweather_api_key_here
 PORT=3000
-APP_BASE_URL=http://localhost:3000
+PUBLIC_APP_URL=http://localhost:3000
 ```
 
 Optional Gmail delivery for mail alerts:
@@ -85,7 +85,7 @@ The repository includes `render.yaml`. In Render, keep `rootDir` set to `Weather
 
 ```env
 API_KEY=your_openweather_api_key_here
-APP_BASE_URL=https://susnata-weather-app.onrender.com
+PUBLIC_APP_URL=https://oxygen-weather.blogspot.com
 MAIL_USER=your_gmail_address@gmail.com
 MAIL_PASS=your_gmail_app_password
 MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
@@ -111,7 +111,14 @@ Use `blogger/oxygen-weather-blogger-theme.xml` for oxygen-weather.blogspot.com.
 4. Replace the current XML with `blogger/oxygen-weather-blogger-theme.xml`.
 5. Save/publish the theme.
 
-The Blogger XML embeds `https://susnata-weather-app.onrender.com/` in a full-screen iframe. This keeps the Node weather backend, profile login, Gmail reminders, and animations working.
+The Blogger XML contains the Oxygen Weather markup, CSS, and JavaScript directly inside the Blogger theme. It still calls the Render backend for private server work such as OpenWeather requests, Gmail reminders, Google config, and alert scheduling.
+The public home is `https://oxygen-weather.blogspot.com/`. Render remains only the backend API host, and direct visits to the Render root redirect to the Blogger home when `PUBLIC_APP_URL` is configured.
+
+If the main app UI changes, regenerate the Blogger XML with:
+
+```bash
+node scripts/generate-blogger-theme.js
+```
 
 ## Project Structure
 

@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'profile-auth-reminder-20260602';
+const UI_BUILD = 'blogger-public-home-20260603';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -24,6 +24,19 @@ const WEATHER_HISTORY_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 const WEATHER_HISTORY_MAX_DAYS = 5;
 const URGENT_ALERT_INTERVAL_MS = 30 * 60 * 1000;
 const URGENT_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_CORS_ORIGINS = [
+  'https://oxygen-weather.blogspot.com',
+  'https://www.oxygen-weather.blogspot.com',
+  'https://susnata-weather-app.onrender.com',
+];
+const CORS_ALLOWED_ORIGINS = new Set([
+  ...DEFAULT_CORS_ORIGINS,
+  ...String(process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]);
+const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
 const weatherCache = new Map();
 let mailTransporter;
 let schedulerRunning = false;
@@ -32,10 +45,23 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && CORS_ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Oxygen-Weather-Version', APP_VERSION.slice(0, 12));
   res.setHeader('X-Oxygen-Weather-UI', UI_BUILD);
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
   next();
 });
 
@@ -48,6 +74,14 @@ app.use(
     maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
   })
 );
+
+app.get('/', (req, res, next) => {
+  if (!PUBLIC_APP_URL || req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
+    return next();
+  }
+
+  return res.redirect(302, PUBLIC_APP_URL);
+});
 
 app.get('/health', (req, res) => {
   res.json({
@@ -1453,7 +1487,12 @@ function baseEmailTemplate({ title, preheader, body }) {
 }
 
 function buildUnsubscribeUrl(req, token) {
-  const configuredBaseUrl = process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL;
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
+  if (publicAppUrl) {
+    return `${publicAppUrl}/?unsubscribe=${encodeURIComponent(token)}`;
+  }
+
+  const configuredBaseUrl = process.env.MAIL_ACTION_BASE_URL || process.env.RENDER_EXTERNAL_URL;
   const baseUrl = configuredBaseUrl
     ? configuredBaseUrl.replace(/\/$/, '')
     : req

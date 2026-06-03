@@ -10,8 +10,8 @@ services:
     envVars:
       - key: API_KEY
         sync: false
-      - key: APP_BASE_URL
-        value: https://susnata-weather-app.onrender.com
+      - key: PUBLIC_APP_URL
+        value: https://oxygen-weather.blogspot.com
       - key: MAIL_USER
         sync: false
       - key: MAIL_PASS
@@ -24,6 +24,8 @@ services:
         value: 465
       - key: GOOGLE_CLIENT_ID
         sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://oxygen-weather.blogspot.com
     autoDeploy: true
     domains:
       - susnatacode.com
