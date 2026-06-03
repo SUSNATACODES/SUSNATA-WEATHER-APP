@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html b:version='2'
+      class='v2 oxygen-weather-blogger'
+      expr:dir='data:blog.languageDirection'
+      xmlns='http://www.w3.org/1999/xhtml'
+      xmlns:b='http://www.google.com/2005/gml/b'
+      xmlns:data='http://www.google.com/2005/gml/data'
+      xmlns:expr='http://www.google.com/2005/gml/expr'>
+<head>
+  <meta content='width=device-width, initial-scale=1, viewport-fit=cover' name='viewport'/>
+  <meta content='Oxygen Weather by Susnata Codes - live weather, forecast, alerts, and Gmail reminders.' name='description'/>
+  <meta content='no-referrer-when-downgrade' name='referrer'/>
+  <b:include data='blog' name='all-head-content'/>
+  <title><data:blog.pageTitle/></title>
+  <link href='https://susnata-weather-app.onrender.com' rel='preconnect'/>
+  <link href='https://fonts.googleapis.com' rel='preconnect'/>
+  <link crossorigin='anonymous' href='https://fonts.gstatic.com' rel='preconnect'/>
+  <link href='https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&amp;display=swap' rel='stylesheet'/>
+  <b:skin><![CDATA[
+    :root {
+      --ow-bg: #07111f;
+      --ow-panel: rgba(8, 18, 32, 0.9);
+      --ow-line: rgba(125, 211, 252, 0.22);
+      --ow-text: #f8fbff;
+      --ow-muted: #9fb2c7;
+      --ow-cyan: #5eead4;
+      --ow-yellow: #facc15;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(94, 234, 212, 0.2), transparent 30%),
+        radial-gradient(circle at 80% 72%, rgba(250, 204, 21, 0.14), transparent 28%),
+        linear-gradient(135deg, #07111f, #0b2030);
+      color: var(--ow-text);
+      font-family: "Inter", Arial, sans-serif;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .navbar,
+    .blogger-clickTrap,
+    .blogger-system {
+      display: none !important;
+    }
+
+    .oxygen-blogger-shell {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-rows: 1fr;
+      isolation: isolate;
+      overflow: hidden;
+    }
+
+    .oxygen-blogger-shell::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(125, 211, 252, 0.08) 1px, transparent 1px),
+        linear-gradient(rgba(125, 211, 252, 0.06) 1px, transparent 1px);
+      background-size: 72px 72px;
+      opacity: 0.6;
+    }
+
+    .oxygen-frame {
+      width: 100%;
+      height: 100vh;
+      display: block;
+      border: 0;
+      background: var(--ow-bg);
+    }
+
+    .oxygen-fallback {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      color: var(--ow-text);
+      background: var(--ow-panel);
+      border: 1px solid var(--ow-line);
+      border-radius: 8px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      pointer-events: none;
+    }
+
+    .oxygen-fallback span {
+      color: var(--ow-muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .oxygen-fallback a {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      color: #07111f;
+      background: linear-gradient(135deg, var(--ow-cyan), #0ea5e9 58%, var(--ow-yellow));
+      border-radius: 8px;
+      font-size: 0.86rem;
+      font-weight: 950;
+      text-decoration: none;
+      white-space: nowrap;
+      pointer-events: auto;
+    }
+
+    .blogger-hidden-content {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+      .oxygen-fallback {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .oxygen-fallback a {
+        width: 100%;
+      }
+    }
+  ]]></b:skin>
+</head>
+<body>
+  <main class='oxygen-blogger-shell'>
+    <div class='blogger-hidden-content'>
+      <h1>Oxygen Weather</h1>
+      <p>Live weather app by Susnata Codes for forecasts, alerts, profile login, and Gmail reminders.</p>
+    </div>
+    <iframe allow='geolocation; fullscreen; clipboard-write'
+            class='oxygen-frame'
+            id='oxygenWeatherFrame'
+            loading='eager'
+            referrerpolicy='strict-origin-when-cross-origin'
+            src='https://susnata-weather-app.onrender.com/?source=oxygen-weather-blogger'
+            title='Oxygen Weather by Susnata Codes'></iframe>
+    <noscript>
+      <div class='oxygen-fallback'>
+        <span>JavaScript is disabled. Open Oxygen Weather directly.</span>
+        <a href='https://susnata-weather-app.onrender.com/' rel='noopener noreferrer' target='_blank'>Open App</a>
+      </div>
+    </noscript>
+  </main>
+
+  <b:section class='blogger-system' id='blogger-system' maxwidgets='1' showaddelement='false'/>
+</body>
+</html>

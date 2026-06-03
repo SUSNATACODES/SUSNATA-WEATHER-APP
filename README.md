@@ -22,6 +22,7 @@ Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScrip
 - Gmail/SMTP weather reminders with important alerts, hourly history tracking, one 12:00 AM full-day report, after-midnight outlook, test emails, and unsubscribe links
 - In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
 - Server-side caching, request timeouts, and cleaner API errors
+- Blogger XML wrapper for publishing the live app on oxygen-weather.blogspot.com
 - Render deployment support
 
 ## Local Setup
@@ -100,10 +101,24 @@ npm install
 npm start
 ```
 
+## Blogger Deployment
+
+Use `blogger/oxygen-weather-blogger-theme.xml` for oxygen-weather.blogspot.com.
+
+1. In Blogger, open Theme.
+2. Back up the current theme.
+3. Open Edit HTML.
+4. Replace the current XML with `blogger/oxygen-weather-blogger-theme.xml`.
+5. Save/publish the theme.
+
+The Blogger XML embeds `https://susnata-weather-app.onrender.com/` in a full-screen iframe. This keeps the Node weather backend, profile login, Gmail reminders, and animations working.
+
 ## Project Structure
 
 ```text
 SUSNATA-WEATHER-APP/
+  blogger/
+    oxygen-weather-blogger-theme.xml
   WeatherServer/
     server.js
     package.json
