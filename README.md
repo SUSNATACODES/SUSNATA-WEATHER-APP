@@ -68,10 +68,10 @@ For exact midnight delivery, use an always-on Render service or an external upti
 Optional Google Sign-In:
 
 ```env
-GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
 ```
 
-Create a Google OAuth web client and add the Render domain as an authorized JavaScript origin before enabling this.
+Create a Google OAuth web client and add the Blogger site plus local test URL as authorized origins before enabling this.
 
 5. Start the server:
 
@@ -95,7 +95,7 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=465
 CONTACT_EMAIL=your_contact_destination@gmail.com
 MAIL_CRON_SECRET=optional_private_scheduler_secret
-GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
 ```
 
 Render will run:
@@ -107,8 +107,8 @@ npm start
 
 ### Google Login Setup
 
-Google login will not open the Google account chooser page until `GOOGLE_CLIENT_ID` is set on Render.
-Create a Google OAuth **Web application** client, then add these authorized JavaScript origins:
+Google login uses the public OAuth Client ID already embedded in the Blogger/static app. Render can also expose the same value from `/auth/config` with `GOOGLE_CLIENT_ID`.
+The Google OAuth **Web application** client must include these authorized JavaScript origins:
 
 ```text
 https://oxygen-weather.blogspot.com
@@ -122,7 +122,7 @@ https://oxygen-weather.blogspot.com/
 http://127.0.0.1:5179/
 ```
 
-Copy the web client ID into Render as `GOOGLE_CLIENT_ID`, redeploy the backend, then reload the website. The Google button will open the full `accounts.google.com` account chooser and return to Oxygen Weather after login.
+After the Blogger XML is published, reload the website. The Google button will open the full `accounts.google.com` account chooser and return to Oxygen Weather after login.
 
 ### Gmail Contact And Report Setup
 

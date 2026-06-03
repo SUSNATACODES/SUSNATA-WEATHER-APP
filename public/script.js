@@ -12,6 +12,7 @@ const GOOGLE_OAUTH_STATE_KEY = 'oxygen-weather-google-oauth-state';
 const GOOGLE_OAUTH_NONCE_KEY = 'oxygen-weather-google-oauth-nonce';
 const GOOGLE_OAUTH_CLIENT_KEY = 'oxygen-weather-google-oauth-client';
 const API_BASE_URL = String(window.OXYGEN_WEATHER_API_BASE || '').replace(/\/$/, '');
+const STATIC_GOOGLE_CLIENT_ID = String(window.OXYGEN_GOOGLE_CLIENT_ID || '').trim();
 const cachedUserProfile = loadUserProfile();
 
 const state = {
@@ -22,7 +23,7 @@ const state = {
     loginEmail: cachedUserProfile?.email || localStorage.getItem(LOGIN_EMAIL_KEY) || '',
     userProfile: cachedUserProfile,
     authMode: 'signin',
-    googleClientId: '',
+    googleClientId: STATIC_GOOGLE_CLIENT_ID,
     googleReady: false,
     clockTimer: null,
     autoRefreshTimer: null,
@@ -606,16 +607,21 @@ async function loadAuthConfig() {
     try {
         const response = await fetch(apiUrl('/auth/config'));
         const config = await response.json().catch(() => null);
-        state.googleClientId = config?.googleClientId || '';
-        syncGoogleLoginButton();
+        state.googleClientId = config?.googleClientId || STATIC_GOOGLE_CLIENT_ID;
+    } catch {
+        state.googleClientId = STATIC_GOOGLE_CLIENT_ID;
+    }
 
-        if (state.googleClientId) {
+    syncGoogleLoginButton();
+
+    if (state.googleClientId) {
+        try {
             await loadGoogleIdentityScript();
             initializeGoogleSignIn();
-            syncGoogleLoginButton();
+        } catch {
+            state.googleReady = false;
         }
-    } catch {
-        state.googleClientId = '';
+
         syncGoogleLoginButton();
     }
 }
@@ -663,7 +669,7 @@ function handleGoogleLoginClick() {
         return;
     }
 
-    showLoginStatus('Google login is waiting for GOOGLE_CLIENT_ID on Render and authorized JavaScript origins in Google Cloud.');
+    showLoginStatus('Google login is waiting for the OAuth Client ID and authorized site URLs in Google Cloud.');
 }
 
 function startGoogleAccountChooser() {
@@ -947,7 +953,7 @@ function syncGoogleLoginButton() {
     dom.googleLoginBtn.classList.toggle('is-unavailable', !isReady);
     dom.googleLoginBtn.title = isReady
         ? 'Open the Google account chooser'
-        : 'Set GOOGLE_CLIENT_ID on Render, then add this site as an authorized JavaScript origin and redirect URI in Google Cloud.';
+        : 'Set the Google OAuth Client ID, then add this site as an authorized JavaScript origin and redirect URI in Google Cloud.';
     dom.googleLoginBtn.setAttribute('aria-disabled', String(!isReady));
 
     if (label) {
