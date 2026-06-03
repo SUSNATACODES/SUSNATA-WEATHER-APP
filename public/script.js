@@ -72,6 +72,7 @@ const dom = {
     homeBtn: document.getElementById('homeBtn'),
     feedbackBtn: document.getElementById('feedbackBtn'),
     contactPanel: document.getElementById('contactPanel'),
+    contactSection: document.getElementById('contactSection'),
     weatherEffects: document.querySelector('.weather-effects'),
     statusMessage: document.getElementById('statusMessage'),
     loading: document.getElementById('loading'),
@@ -277,6 +278,10 @@ function wireEvents() {
 
             if (action === 'mail') {
                 focusMailAlerts();
+            }
+
+            if (action === 'contact') {
+                focusContactSection();
             }
 
             if (action === 'earthquake') {
@@ -753,6 +758,10 @@ function focusMailAlerts() {
     window.setTimeout(() => {
         dom.alertEmail.focus({ preventScroll: true });
     }, 320);
+}
+
+function focusContactSection() {
+    dom.contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function fillMailLocationFromCurrentWeather() {

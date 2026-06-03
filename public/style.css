@@ -1627,6 +1627,155 @@ h1 {
         var(--surface);
 }
 
+.contact-section {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(260px, 0.86fr) minmax(360px, 1.14fr);
+    gap: 18px;
+    margin-top: 16px;
+    padding: 22px;
+    overflow: hidden;
+    color: #fff;
+    background:
+        radial-gradient(circle at 16% 18%, rgba(94, 234, 212, 0.28), transparent 32%),
+        radial-gradient(circle at 88% 82%, rgba(250, 204, 21, 0.18), transparent 28%),
+        linear-gradient(135deg, rgba(8, 18, 32, 0.96), rgba(18, 75, 80, 0.92)),
+        var(--ink);
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    border-radius: var(--radius);
+    box-shadow: 0 24px 56px rgba(8, 18, 32, 0.22);
+    animation: riseIn 680ms ease 160ms both;
+}
+
+.contact-section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(rgba(125, 211, 252, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(125, 211, 252, 0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.86), transparent 78%);
+}
+
+.contact-copy,
+.contact-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.contact-copy {
+    min-width: 0;
+    display: grid;
+    align-content: center;
+}
+
+.contact-copy .eyebrow {
+    color: #5eead4;
+}
+
+.contact-copy h2 {
+    max-width: 520px;
+    margin-bottom: 10px;
+    color: #fff;
+    font-size: clamp(2rem, 4vw, 3.15rem);
+    line-height: 0.98;
+}
+
+.contact-copy p {
+    max-width: 520px;
+    margin-bottom: 18px;
+    color: rgba(237, 247, 255, 0.74);
+    font-weight: 750;
+    line-height: 1.58;
+}
+
+.contact-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.contact-status-row span {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 11px;
+    color: #eaffff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.16);
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.contact-status-row svg {
+    width: 16px;
+    height: 16px;
+    color: #5eead4;
+}
+
+.contact-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.contact-action {
+    min-height: 118px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    color: #f8fbff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: var(--radius);
+    transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.contact-action:hover {
+    transform: translateY(-4px);
+    border-color: rgba(94, 234, 212, 0.52);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 38px rgba(0, 0, 0, 0.2);
+}
+
+.contact-action.is-primary {
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.94), rgba(37, 99, 235, 0.72));
+    border-color: rgba(94, 234, 212, 0.36);
+}
+
+.contact-action > svg {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    padding: 10px;
+    color: #061322;
+    background: linear-gradient(135deg, #5eead4, #facc15);
+    border-radius: var(--radius);
+}
+
+.contact-action span {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+}
+
+.contact-action strong {
+    color: #fff;
+    font-size: 1.02rem;
+    line-height: 1.1;
+}
+
+.contact-action small {
+    color: rgba(237, 247, 255, 0.68);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
 .site-footer {
     width: min(1180px, calc(100% - 32px));
     margin: 26px auto 22px;
@@ -1989,6 +2138,7 @@ h1 {
 
     .search-toolbar,
     .mail-alerts-panel,
+    .contact-section,
     .current-panel,
     .forecast-section,
     .air-section {
@@ -3570,6 +3720,10 @@ body {
         grid-template-columns: 0.72fr 1.28fr;
     }
 
+    .contact-section {
+        grid-template-columns: 1fr;
+    }
+
     .mail-alerts-panel {
         grid-template-columns: 1fr;
     }
@@ -3627,6 +3781,10 @@ body {
     }
 
     .mail-alerts-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .contact-actions {
         grid-template-columns: 1fr;
     }
 }
@@ -3700,7 +3858,8 @@ body {
 }
 
 .dashboard > section,
-.weather-dashboard > section {
+.weather-dashboard > section,
+.contact-action {
     contain: layout paint;
 }
 
