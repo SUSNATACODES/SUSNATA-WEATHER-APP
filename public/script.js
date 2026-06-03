@@ -7,6 +7,10 @@ const AUTO_REFRESH_MS = 10 * 60 * 1000;
 const MAX_CANVAS_DPR = 1.5;
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
+const GOOGLE_OAUTH_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+const GOOGLE_OAUTH_STATE_KEY = 'oxygen-weather-google-oauth-state';
+const GOOGLE_OAUTH_NONCE_KEY = 'oxygen-weather-google-oauth-nonce';
+const GOOGLE_OAUTH_CLIENT_KEY = 'oxygen-weather-google-oauth-client';
 const API_BASE_URL = String(window.OXYGEN_WEATHER_API_BASE || '').replace(/\/$/, '');
 const cachedUserProfile = loadUserProfile();
 
@@ -159,6 +163,7 @@ function bootApp() {
     syncWeatherCanvas('clouds');
     wireEvents();
     renderAuthState();
+    handleGoogleRedirectResponse();
     renderRecentSearches();
     renderFavoritePlaces();
     renderIcons();
@@ -653,13 +658,140 @@ function initializeGoogleSignIn() {
 }
 
 function handleGoogleLoginClick() {
-    if (state.googleReady && window.google?.accounts?.id) {
-        window.google.accounts.id.prompt();
-        showLoginStatus('Google sign-in is opening.');
+    if (state.googleClientId) {
+        startGoogleAccountChooser();
         return;
     }
 
     showLoginStatus('Google login is waiting for GOOGLE_CLIENT_ID on Render and authorized JavaScript origins in Google Cloud.');
+}
+
+function startGoogleAccountChooser() {
+    const redirectUri = getGoogleRedirectUri();
+    const stateValue = createGoogleOauthValue();
+    const nonceValue = createGoogleOauthValue();
+
+    sessionStorage.setItem(GOOGLE_OAUTH_STATE_KEY, stateValue);
+    sessionStorage.setItem(GOOGLE_OAUTH_NONCE_KEY, nonceValue);
+    sessionStorage.setItem(GOOGLE_OAUTH_CLIENT_KEY, state.googleClientId);
+
+    const params = new URLSearchParams({
+        client_id: state.googleClientId,
+        redirect_uri: redirectUri,
+        response_type: 'token id_token',
+        scope: 'openid email profile',
+        state: stateValue,
+        nonce: nonceValue,
+        prompt: 'select_account',
+        access_type: 'online',
+    });
+
+    showLoginStatus('Opening Google account chooser.');
+    window.location.assign(`${GOOGLE_OAUTH_AUTHORIZE_URL}?${params.toString()}`);
+}
+
+function handleGoogleRedirectResponse() {
+    const hash = window.location.hash.startsWith('#')
+        ? window.location.hash.slice(1)
+        : '';
+
+    if (!hash || (!hash.includes('id_token=') && !hash.includes('error='))) {
+        return;
+    }
+
+    const params = new URLSearchParams(hash);
+    const expectedState = sessionStorage.getItem(GOOGLE_OAUTH_STATE_KEY);
+    const expectedNonce = sessionStorage.getItem(GOOGLE_OAUTH_NONCE_KEY);
+    const expectedClientId = sessionStorage.getItem(GOOGLE_OAUTH_CLIENT_KEY);
+    const returnedState = params.get('state') || '';
+    const error = params.get('error');
+
+    if (error) {
+        const description = params.get('error_description') || error;
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus(`Google sign-in stopped: ${description}`);
+        return;
+    }
+
+    if (!expectedState || returnedState !== expectedState) {
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus('Google sign-in could not be verified. Please try again.');
+        return;
+    }
+
+    const payload = decodeGoogleJwt(params.get('id_token'));
+    if (!payload?.email) {
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus('Google sign-in could not read your profile.');
+        return;
+    }
+
+    if (expectedNonce && payload.nonce !== expectedNonce) {
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus('Google sign-in protection check failed. Please try again.');
+        return;
+    }
+
+    if (expectedClientId && payload.aud !== expectedClientId) {
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus('Google sign-in client did not match this website.');
+        return;
+    }
+
+    const expiresAt = Number(payload.exp) * 1000;
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+        clearGoogleOAuthStorage();
+        cleanGoogleOAuthHash();
+        showLoginStatus('Google sign-in expired. Please try again.');
+        return;
+    }
+
+    const profile = createUserProfile({
+        email: payload.email,
+        name: payload.name || getNameFromEmail(payload.email),
+        picture: payload.picture || '',
+        provider: 'google',
+        expiresAt: Math.min(expiresAt, Date.now() + SESSION_DURATION_MS),
+    });
+
+    clearGoogleOAuthStorage();
+    cleanGoogleOAuthHash();
+    saveUserProfile(profile);
+    localStorage.setItem(LOGIN_EMAIL_KEY, profile.email);
+    dom.alertEmail.value = profile.email;
+    showLoginStatus(`Welcome ${profile.name}. Google profile connected.`);
+}
+
+function getGoogleRedirectUri() {
+    return `${window.location.origin}${window.location.pathname}`;
+}
+
+function createGoogleOauthValue() {
+    const bytes = new Uint8Array(16);
+    window.crypto?.getRandomValues?.(bytes);
+    if (!bytes.some(Boolean)) {
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    return Array.from(bytes)
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+function clearGoogleOAuthStorage() {
+    sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY);
+    sessionStorage.removeItem(GOOGLE_OAUTH_NONCE_KEY);
+    sessionStorage.removeItem(GOOGLE_OAUTH_CLIENT_KEY);
+}
+
+function cleanGoogleOAuthHash() {
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState({}, document.title, cleanUrl);
 }
 
 function handleGoogleCredential(response) {
@@ -814,12 +946,12 @@ function syncGoogleLoginButton() {
     const isReady = Boolean(state.googleClientId);
     dom.googleLoginBtn.classList.toggle('is-unavailable', !isReady);
     dom.googleLoginBtn.title = isReady
-        ? 'Continue with Google'
-        : 'Set GOOGLE_CLIENT_ID on Render, then add this site as an authorized JavaScript origin in Google Cloud.';
+        ? 'Open the Google account chooser'
+        : 'Set GOOGLE_CLIENT_ID on Render, then add this site as an authorized JavaScript origin and redirect URI in Google Cloud.';
     dom.googleLoginBtn.setAttribute('aria-disabled', String(!isReady));
 
     if (label) {
-        label.textContent = isReady ? 'Continue with Google' : 'Google setup required';
+        label.textContent = isReady ? 'Choose Google account' : 'Google setup required';
     }
 }
 

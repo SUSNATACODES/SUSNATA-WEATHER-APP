@@ -107,7 +107,7 @@ npm start
 
 ### Google Login Setup
 
-Google login will not open the permission page until `GOOGLE_CLIENT_ID` is set on Render.
+Google login will not open the Google account chooser page until `GOOGLE_CLIENT_ID` is set on Render.
 Create a Google OAuth **Web application** client, then add these authorized JavaScript origins:
 
 ```text
@@ -115,7 +115,14 @@ https://oxygen-weather.blogspot.com
 http://127.0.0.1:5179
 ```
 
-Copy the web client ID into Render as `GOOGLE_CLIENT_ID`, redeploy the backend, then reload the website.
+Also add these authorized redirect URIs:
+
+```text
+https://oxygen-weather.blogspot.com/
+http://127.0.0.1:5179/
+```
+
+Copy the web client ID into Render as `GOOGLE_CLIENT_ID`, redeploy the backend, then reload the website. The Google button will open the full `accounts.google.com` account chooser and return to Oxygen Weather after login.
 
 ### Gmail Contact And Report Setup
 
