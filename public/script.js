@@ -407,10 +407,6 @@ function updateBackgroundPointer(event) {
 }
 
 function ensureDynamicPanels() {
-    if (dom.weatherDashboard && dom.mailAlertsPanel) {
-        dom.weatherDashboard.after(dom.mailAlertsPanel);
-    }
-
     if (!dom.smartBriefPanel) {
         const panel = document.createElement('section');
         panel.className = 'smart-brief-panel';
@@ -426,11 +422,12 @@ function ensureDynamicPanels() {
             </div>
             <div class="smart-brief-grid" id="smartBriefGrid"></div>
         `;
-        dom.weatherDashboard.before(panel);
         dom.smartBriefPanel = panel;
         dom.smartBriefGrid = panel.querySelector('#smartBriefGrid');
         dom.autoRefreshLabel = panel.querySelector('#autoRefreshLabel');
     }
+
+    orderDashboardPanels();
 
     if (!dom.hourlyDetail) {
         const detail = document.createElement('div');
@@ -448,6 +445,24 @@ function ensureDynamicPanels() {
         dom.weatherEffects.prepend(canvas);
         dom.weatherCanvas = canvas;
     }
+}
+
+function orderDashboardPanels() {
+    const anchor = dom.loading || dom.statusMessage || dom.recentSearches;
+    if (!anchor) return;
+
+    [
+        dom.smartBriefPanel,
+        dom.weatherDashboard,
+        dom.favoritePlacesPanel,
+        dom.missionControl,
+        dom.decisionBoard,
+        dom.mailAlertsPanel,
+        dom.contactSection,
+    ].filter(Boolean).reduce((previous, panel) => {
+        previous.after(panel);
+        return panel;
+    }, anchor);
 }
 
 function isTypingTarget(target) {
