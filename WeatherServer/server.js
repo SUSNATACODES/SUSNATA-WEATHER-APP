@@ -36,7 +36,7 @@ const CORS_ALLOWED_ORIGINS = new Set([
     .map((origin) => origin.trim())
     .filter(Boolean),
 ]);
-const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
+const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || 'https://oxygen-weather.blogspot.com').replace(/\/$/, '');
 const weatherCache = new Map();
 let mailTransporter;
 let schedulerRunning = false;
