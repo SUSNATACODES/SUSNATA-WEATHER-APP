@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'mission-control-20260603';
+const UI_BUILD = 'mail-diagnostics-20260603';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -30,6 +30,7 @@ const DEFAULT_CORS_ORIGINS = [
   'https://oxygen-weather.blogspot.com',
   'https://www.oxygen-weather.blogspot.com',
   'https://susnata-weather-app.onrender.com',
+  'https://susnata-weather-app-oeqt.onrender.com',
   'http://127.0.0.1:5179',
   'http://localhost:5179',
   'null',
@@ -46,6 +47,9 @@ const weatherCache = new Map();
 const contactRateBuckets = new Map();
 let mailTransporter;
 let schedulerRunning = false;
+let schedulerInFlight = false;
+let lastSchedulerRunAt = null;
+let lastSchedulerRunSummary = null;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -141,6 +145,7 @@ app.get('/auth/config', (req, res) => {
   res.json({
     ok: true,
     googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    googleConfigured: Boolean(process.env.GOOGLE_CLIENT_ID),
   });
 });
 
@@ -196,13 +201,37 @@ app.get('/mail-alerts/status', async (req, res) => {
   res.json({
     ok: true,
     mailConfigured: isMailConfigured(),
+    mailUserConfigured: Boolean(getMailUser()),
+    contactRecipientConfigured: Boolean(getContactRecipient()),
     schedulerRunning,
+    schedulerInFlight,
+    lastSchedulerRunAt,
+    lastSchedulerRunSummary,
     activeSubscriptions: activeSubscriptions.length,
     defaultDailyReportTime: '00:00',
     historySampleMinutes: Math.round(WEATHER_HISTORY_SAMPLE_INTERVAL_MS / 60000),
+    cronEndpoint: `${getRequestBaseUrl(req)}/mail-alerts/cron`,
     message: isMailConfigured()
       ? 'Gmail SMTP is connected. Automatic reports can be delivered.'
       : 'Gmail SMTP is not connected yet. Add MAIL_USER and MAIL_PASS on Render to send automatic emails.',
+  });
+});
+
+app.get('/mail-alerts/cron', async (req, res) => {
+  const secret = process.env.MAIL_CRON_SECRET || process.env.CRON_SECRET || '';
+  const providedSecret = String(req.query.secret || req.headers['x-cron-secret'] || '');
+
+  if (secret && providedSecret !== secret) {
+    return res.status(401).json({
+      ok: false,
+      error: 'Scheduler secret is required.',
+    });
+  }
+
+  const summary = await runMailScheduler({ source: 'cron-endpoint' });
+  res.json({
+    ok: true,
+    ...summary,
   });
 });
 
@@ -1101,104 +1130,168 @@ function startMailScheduler() {
   setTimeout(runMailScheduler, 15 * 1000).unref?.();
 }
 
-async function runMailScheduler() {
-  if (!API_KEY) {
-    return;
+async function runMailScheduler({ source = 'interval' } = {}) {
+  if (schedulerInFlight) {
+    return {
+      source,
+      skipped: true,
+      reason: 'scheduler-already-running',
+      lastSchedulerRunAt,
+      lastSchedulerRunSummary,
+    };
   }
 
-  const subscriptions = await loadMailSubscriptions();
-  const history = await loadWeatherHistory();
-  const activeSubscriptions = subscriptions.filter((subscription) => subscription.active);
-  if (!activeSubscriptions.length) {
-    return;
-  }
+  schedulerInFlight = true;
+  const startedAt = new Date().toISOString();
+  const summary = {
+    source,
+    startedAt,
+    finishedAt: null,
+    mailConfigured: isMailConfigured(),
+    activeSubscriptions: 0,
+    checkedSubscriptions: 0,
+    dueDailyReports: 0,
+    sentDailyReports: 0,
+    dueImportantChecks: 0,
+    sentImportantAlerts: 0,
+    savedHistorySamples: 0,
+    skippedNoMail: 0,
+    failures: 0,
+    reason: '',
+  };
 
-  let changed = false;
-  let historyChanged = false;
-  const now = Date.now();
-  const mailConfigured = isMailConfigured();
-
-  for (const subscription of activeSubscriptions) {
-    const options = getSubscriptionOptions(subscription);
-    const dailyDue = options.dailyReports && isDailyReportDue(subscription, now);
-    const urgentDue = options.urgentAlerts && isUrgentCheckDue(subscription, now);
-    const historyDue = isHistorySampleDue(subscription, now);
-
-    if (!dailyDue && !urgentDue && !historyDue) {
-      continue;
+  try {
+    if (!API_KEY) {
+      summary.reason = 'missing-weather-api-key';
+      return summary;
     }
 
-    const request = getWeatherRequestFromSubscription(subscription);
-    if (!request.ok) {
-      continue;
+    const subscriptions = await loadMailSubscriptions();
+    const history = await loadWeatherHistory();
+    const activeSubscriptions = subscriptions.filter((subscription) => subscription.active);
+    summary.activeSubscriptions = activeSubscriptions.length;
+
+    if (!activeSubscriptions.length) {
+      summary.reason = 'no-active-subscriptions';
+      return summary;
     }
 
-    try {
-      const payload = await fetchWeatherPayload(request);
-      subscription.location.label = formatLocationLabel(payload.location);
-      subscription.location.timezoneOffset = payload.location.timezoneOffset || subscription.location.timezoneOffset || 0;
-      subscription.location.coordinates = payload.location.coordinates || subscription.location.coordinates;
-      subscription.options = options;
+    let changed = false;
+    let historyChanged = false;
+    const now = Date.now();
+    const mailConfigured = isMailConfigured();
 
-      if (historyDue) {
-        recordWeatherHistory(history, subscription, payload, now);
-        subscription.lastHistorySampleAt = new Date(now).toISOString();
-        historyChanged = true;
-        changed = true;
+    for (const subscription of activeSubscriptions) {
+      const options = getSubscriptionOptions(subscription);
+      const dailyDue = options.dailyReports && isDailyReportDue(subscription, now);
+      const urgentDue = options.urgentAlerts && isUrgentCheckDue(subscription, now);
+      const historyDue = isHistorySampleDue(subscription, now);
+
+      if (!dailyDue && !urgentDue && !historyDue) {
+        continue;
       }
 
-      if (dailyDue && mailConfigured) {
-        const deliveryDateKey = getLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
-        const historyDateKey = getPreviousLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
-        const dayHistorySamples = getHistorySamples(history, subscription, historyDateKey);
-        const unsubscribeUrl = buildUnsubscribeUrl(null, subscription.token);
-        const sent = await sendEmail({
-          to: subscription.email,
-          subject: `Daily weather report for ${subscription.location.label}`,
-          ...buildDailyReportEmail(subscription, payload, unsubscribeUrl, dayHistorySamples, historyDateKey),
-        });
+      summary.checkedSubscriptions += 1;
+      if (dailyDue) summary.dueDailyReports += 1;
+      if (urgentDue) summary.dueImportantChecks += 1;
 
-        if (sent) {
-          subscription.lastDailyReportDate = deliveryDateKey;
+      const request = getWeatherRequestFromSubscription(subscription);
+      if (!request.ok) {
+        summary.failures += 1;
+        continue;
+      }
+
+      try {
+        const payload = await fetchWeatherPayload(request);
+        subscription.location.label = formatLocationLabel(payload.location);
+        subscription.location.timezoneOffset = payload.location.timezoneOffset || subscription.location.timezoneOffset || 0;
+        subscription.location.coordinates = payload.location.coordinates || subscription.location.coordinates;
+        subscription.options = options;
+
+        if (historyDue) {
+          recordWeatherHistory(history, subscription, payload, now);
+          subscription.lastHistorySampleAt = new Date(now).toISOString();
+          summary.savedHistorySamples += 1;
+          historyChanged = true;
           changed = true;
         }
-      }
 
-      if (urgentDue && mailConfigured) {
-        subscription.lastImportantCheckAt = new Date(now).toISOString();
-        const alerts = buildImportantAlerts(payload, options);
-        const signature = getAlertSignature(alerts);
-        const sentRecently =
-          subscription.lastUrgentSentAt &&
-          now - Date.parse(subscription.lastUrgentSentAt) < URGENT_ALERT_COOLDOWN_MS;
+        if (dailyDue) {
+          if (!mailConfigured) {
+            summary.skippedNoMail += 1;
+          } else {
+            const deliveryDateKey = getLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
+            const historyDateKey = getPreviousLocalDateKey(now / 1000, subscription.location.timezoneOffset || 0);
+            const dayHistorySamples = getHistorySamples(history, subscription, historyDateKey);
+            const unsubscribeUrl = buildUnsubscribeUrl(null, subscription.token);
+            const sent = await sendEmail({
+              to: subscription.email,
+              subject: `Daily weather report for ${subscription.location.label}`,
+              ...buildDailyReportEmail(subscription, payload, unsubscribeUrl, dayHistorySamples, historyDateKey),
+            });
 
-        if (alerts.length && signature !== subscription.lastUrgentSignature && !sentRecently) {
-          const unsubscribeUrl = buildUnsubscribeUrl(null, subscription.token);
-          const sent = await sendEmail({
-            to: subscription.email,
-            subject: `Important weather alert for ${subscription.location.label}`,
-            ...buildUrgentAlertEmail(subscription, payload, alerts, unsubscribeUrl),
-          });
-
-          if (sent) {
-            subscription.lastUrgentSignature = signature;
-            subscription.lastUrgentSentAt = new Date(now).toISOString();
+            if (sent) {
+              subscription.lastDailyReportDate = deliveryDateKey;
+              summary.sentDailyReports += 1;
+              changed = true;
+            } else {
+              summary.failures += 1;
+            }
           }
         }
 
-        changed = true;
+        if (urgentDue) {
+          subscription.lastImportantCheckAt = new Date(now).toISOString();
+          changed = true;
+
+          if (!mailConfigured) {
+            summary.skippedNoMail += 1;
+          } else {
+            const alerts = buildImportantAlerts(payload, options);
+            const signature = getAlertSignature(alerts);
+            const sentRecently =
+              subscription.lastUrgentSentAt &&
+              now - Date.parse(subscription.lastUrgentSentAt) < URGENT_ALERT_COOLDOWN_MS;
+
+            if (alerts.length && signature !== subscription.lastUrgentSignature && !sentRecently) {
+              const unsubscribeUrl = buildUnsubscribeUrl(null, subscription.token);
+              const sent = await sendEmail({
+                to: subscription.email,
+                subject: `Important weather alert for ${subscription.location.label}`,
+                ...buildUrgentAlertEmail(subscription, payload, alerts, unsubscribeUrl),
+              });
+
+              if (sent) {
+                subscription.lastUrgentSignature = signature;
+                subscription.lastUrgentSentAt = new Date(now).toISOString();
+                summary.sentImportantAlerts += 1;
+              } else {
+                summary.failures += 1;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        summary.failures += 1;
+        console.error(`Mail scheduler failed for ${subscription.email}:`, error.message);
       }
-    } catch (error) {
-      console.error(`Mail scheduler failed for ${subscription.email}:`, error.message);
     }
-  }
 
-  if (changed) {
-    await saveMailSubscriptions(subscriptions);
-  }
+    if (changed) {
+      await saveMailSubscriptions(subscriptions);
+    }
 
-  if (historyChanged) {
-    await saveWeatherHistory(history);
+    if (historyChanged) {
+      await saveWeatherHistory(history);
+    }
+
+    summary.reason = summary.checkedSubscriptions ? 'completed' : 'nothing-due';
+    return summary;
+  } finally {
+    summary.finishedAt = new Date().toISOString();
+    lastSchedulerRunAt = summary.finishedAt;
+    lastSchedulerRunSummary = summary;
+    schedulerInFlight = false;
   }
 }
 
@@ -1681,6 +1774,14 @@ function formatLocationLabel(location) {
 
 function formatMetric(value, unit) {
   return Number.isFinite(Number(value)) ? `${value} ${unit}` : `-- ${unit}`;
+}
+
+function getRequestBaseUrl(req) {
+  if (!req) {
+    return PUBLIC_APP_URL;
+  }
+
+  return `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
 }
 
 function escapeHtml(value) {

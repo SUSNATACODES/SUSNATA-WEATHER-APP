@@ -20,6 +20,8 @@ services:
         sync: false
       - key: CONTACT_EMAIL
         sync: false
+      - key: MAIL_CRON_SECRET
+        sync: false
       - key: MAIL_HOST
         value: smtp.gmail.com
       - key: MAIL_PORT
@@ -27,7 +29,7 @@ services:
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: CORS_ALLOWED_ORIGINS
-        value: https://oxygen-weather.blogspot.com
+        value: https://oxygen-weather.blogspot.com,https://www.oxygen-weather.blogspot.com,http://127.0.0.1:5179
     autoDeploy: true
     domains:
       - susnatacode.com

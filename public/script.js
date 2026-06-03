@@ -602,13 +602,16 @@ async function loadAuthConfig() {
         const response = await fetch(apiUrl('/auth/config'));
         const config = await response.json().catch(() => null);
         state.googleClientId = config?.googleClientId || '';
+        syncGoogleLoginButton();
 
         if (state.googleClientId) {
             await loadGoogleIdentityScript();
             initializeGoogleSignIn();
+            syncGoogleLoginButton();
         }
     } catch {
         state.googleClientId = '';
+        syncGoogleLoginButton();
     }
 }
 
@@ -656,7 +659,7 @@ function handleGoogleLoginClick() {
         return;
     }
 
-    showLoginStatus('Google login needs GOOGLE_CLIENT_ID on Render.');
+    showLoginStatus('Google login is waiting for GOOGLE_CLIENT_ID on Render and authorized JavaScript origins in Google Cloud.');
 }
 
 function handleGoogleCredential(response) {
@@ -797,10 +800,27 @@ function renderAuthState() {
         dom.loginForm.hidden = false;
         dom.authDivider.hidden = false;
         dom.googleLoginBtn.hidden = false;
+        syncGoogleLoginButton();
         dom.loginStatus.hidden = true;
     }
 
     renderIcons();
+}
+
+function syncGoogleLoginButton() {
+    if (!dom.googleLoginBtn || dom.googleLoginBtn.hidden) return;
+
+    const label = dom.googleLoginBtn.querySelector('span:last-child');
+    const isReady = Boolean(state.googleClientId);
+    dom.googleLoginBtn.classList.toggle('is-unavailable', !isReady);
+    dom.googleLoginBtn.title = isReady
+        ? 'Continue with Google'
+        : 'Set GOOGLE_CLIENT_ID on Render, then add this site as an authorized JavaScript origin in Google Cloud.';
+    dom.googleLoginBtn.setAttribute('aria-disabled', String(!isReady));
+
+    if (label) {
+        label.textContent = isReady ? 'Continue with Google' : 'Google setup required';
+    }
 }
 
 function getNameFromEmail(email) {
@@ -975,7 +995,14 @@ async function loadMailAlertStatus() {
             throw new Error('Mail status is unavailable right now.');
         }
 
-        showMailServerStatus(data.message, data.mailConfigured ? 'success' : 'warning');
+        const statusParts = [data.message];
+        if (!data.mailConfigured) {
+            statusParts.push('Contact form, test mail, emergency alerts, and 12:00 AM reports cannot send until Gmail SMTP is connected.');
+        }
+        if (Number(data.activeSubscriptions) === 0) {
+            statusParts.push('No active subscriptions are saved on this backend yet.');
+        }
+        showMailServerStatus(statusParts.join(' '), data.mailConfigured ? 'success' : 'warning');
     } catch {
         showMailServerStatus('Mail server status could not be checked yet.', 'warning');
     }

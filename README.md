@@ -94,6 +94,7 @@ MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=465
 CONTACT_EMAIL=your_contact_destination@gmail.com
+MAIL_CRON_SECRET=optional_private_scheduler_secret
 GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
 ```
 
@@ -103,6 +104,47 @@ Render will run:
 npm install
 npm start
 ```
+
+### Google Login Setup
+
+Google login will not open the permission page until `GOOGLE_CLIENT_ID` is set on Render.
+Create a Google OAuth **Web application** client, then add these authorized JavaScript origins:
+
+```text
+https://oxygen-weather.blogspot.com
+http://127.0.0.1:5179
+```
+
+Copy the web client ID into Render as `GOOGLE_CLIENT_ID`, redeploy the backend, then reload the website.
+
+### Gmail Contact And Report Setup
+
+Contact form email, Send Test, important alerts, and 12:00 AM reports all use the same Gmail SMTP connection. They cannot send until these Render variables are valid:
+
+```env
+MAIL_USER=your_gmail_address@gmail.com
+MAIL_PASS=your_16_character_google_app_password
+MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
+CONTACT_EMAIL=where_contact_messages_should_arrive@gmail.com
+```
+
+Use a Google **App Password** for `MAIL_PASS`, not your normal Gmail password. If 2-Step Verification is off, Google will not create an app password.
+
+### Midnight Report Reliability
+
+The server has a scheduler, but Render free services can sleep. For more reliable 12:00 AM delivery, create an external cron/uptime job that calls:
+
+```text
+https://susnata-weather-app-oeqt.onrender.com/mail-alerts/cron
+```
+
+If `MAIL_CRON_SECRET` is set, call:
+
+```text
+https://susnata-weather-app-oeqt.onrender.com/mail-alerts/cron?secret=YOUR_SECRET
+```
+
+Ping it every 10-15 minutes. The backend only sends due reports/alerts, so repeated pings should not spam users.
 
 ## Blogger Deployment
 

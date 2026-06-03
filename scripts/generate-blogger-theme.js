@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const API_BASE_URL = 'https://susnata-weather-app.onrender.com';
+const API_BASE_URL = 'https://susnata-weather-app-oeqt.onrender.com';
 const PUBLIC_APP_URL = 'https://oxygen-weather.blogspot.com';
 const OUTPUT_FILE = path.join(ROOT_DIR, 'blogger', 'oxygen-weather-blogger-theme.xml');
 

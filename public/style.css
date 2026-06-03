@@ -3168,6 +3168,13 @@ body {
     border: 1px solid rgba(125, 211, 252, 0.2);
 }
 
+.google-login-button.is-unavailable {
+    color: #c8d7e5;
+    background: rgba(255, 255, 255, 0.055);
+    border-style: dashed;
+    border-color: rgba(250, 204, 21, 0.3);
+}
+
 .google-mark {
     width: 28px;
     height: 28px;
