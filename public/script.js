@@ -1,5 +1,6 @@
 const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
+const FAVORITE_PLACES_KEY = 'oxygen-weather-favorite-places';
 const LOGIN_EMAIL_KEY = 'oxygen-weather-login-email';
 const USER_PROFILE_KEY = 'oxygen-weather-user-profile';
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -13,6 +14,7 @@ const state = {
     unit: 'metric',
     weather: null,
     recentSearches: loadRecentSearches(),
+    favoritePlaces: loadFavoritePlaces(),
     loginEmail: cachedUserProfile?.email || localStorage.getItem(LOGIN_EMAIL_KEY) || '',
     userProfile: cachedUserProfile,
     authMode: 'signin',
@@ -69,6 +71,9 @@ const dom = {
     loginCloseBtn: document.getElementById('loginCloseBtn'),
     loginStatus: document.getElementById('loginStatus'),
     refreshBtn: document.getElementById('refreshBtn'),
+    savePlaceBtn: document.getElementById('savePlaceBtn'),
+    shareReportBtn: document.getElementById('shareReportBtn'),
+    plannerFocusBtn: document.getElementById('plannerFocusBtn'),
     homeBtn: document.getElementById('homeBtn'),
     feedbackBtn: document.getElementById('feedbackBtn'),
     contactPanel: document.getElementById('contactPanel'),
@@ -102,6 +107,19 @@ const dom = {
     headerWeatherMood: document.getElementById('headerWeatherMood'),
     weatherDashboard: document.getElementById('weatherDashboard'),
     recentSearches: document.getElementById('recentSearches'),
+    favoritePlacesPanel: document.getElementById('favoritePlacesPanel'),
+    favoritePlacesGrid: document.getElementById('favoritePlacesGrid'),
+    favoritePlacesCount: document.getElementById('favoritePlacesCount'),
+    missionControl: document.getElementById('missionControl'),
+    missionTitle: document.getElementById('missionTitle'),
+    missionSummary: document.getElementById('missionSummary'),
+    missionScore: document.getElementById('missionScore'),
+    missionScoreLabel: document.getElementById('missionScoreLabel'),
+    missionGrid: document.getElementById('missionGrid'),
+    decisionBoard: document.getElementById('decisionBoard'),
+    plannerGrid: document.getElementById('plannerGrid'),
+    riskRadarGrid: document.getElementById('riskRadarGrid'),
+    readinessChecklist: document.getElementById('readinessChecklist'),
     cityName: document.getElementById('cityName'),
     conditionText: document.getElementById('conditionText'),
     temperature: document.getElementById('temperature'),
@@ -138,6 +156,7 @@ function bootApp() {
     wireEvents();
     renderAuthState();
     renderRecentSearches();
+    renderFavoritePlaces();
     renderIcons();
     loadAuthConfig();
     loadMailAlertStatus();
@@ -247,6 +266,18 @@ function wireEvents() {
         refreshWeather();
     });
 
+    dom.savePlaceBtn.addEventListener('click', () => {
+        saveCurrentPlace();
+    });
+
+    dom.shareReportBtn.addEventListener('click', () => {
+        shareWeatherReport();
+    });
+
+    dom.plannerFocusBtn.addEventListener('click', () => {
+        focusDecisionBoard();
+    });
+
     dom.homeBtn.addEventListener('click', () => {
         goHome();
     });
@@ -291,6 +322,18 @@ function wireEvents() {
 
             if (action === 'mail') {
                 focusMailAlerts();
+            }
+
+            if (action === 'save') {
+                saveCurrentPlace();
+            }
+
+            if (action === 'planner') {
+                focusDecisionBoard();
+            }
+
+            if (action === 'share') {
+                shareWeatherReport();
             }
 
             if (action === 'contact') {
@@ -778,6 +821,15 @@ function focusContactSection() {
     dom.contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+function focusDecisionBoard() {
+    if (dom.decisionBoard.hidden) {
+        showTemporaryStatus('Load live weather first, then the day planner will unlock.', 'success');
+        return;
+    }
+
+    dom.decisionBoard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function syncContactProfileFields() {
     const profile = state.userProfile;
     if (profile) {
@@ -1241,11 +1293,14 @@ function renderWeather(data) {
     }
 
     renderSmartBrief(data);
+    renderMissionControl(data);
+    renderDecisionBoard(data);
     renderSmartInsights(data);
     renderMetrics(data);
     renderHourly(data.hourly || [], data.location.timezoneOffset || 0);
     renderForecast(data.forecast || []);
     renderAirQuality(data.airQuality);
+    renderFavoritePlaces();
     updateUnitButtons();
     renderIcons();
 }
@@ -1329,6 +1384,305 @@ function renderMetrics(data) {
             `;
         })
         .join('');
+}
+
+function renderMissionControl(data) {
+    const mission = buildMissionSnapshot(data);
+    dom.missionControl.hidden = false;
+    dom.missionControl.dataset.tone = mission.tone;
+    dom.missionTitle.textContent = `${formatLocation(data.location)} Command`;
+    dom.missionSummary.textContent = mission.summary;
+    dom.missionScore.textContent = mission.score;
+    dom.missionScoreLabel.textContent = mission.label;
+    dom.missionGrid.innerHTML = mission.items
+        .map((item) => {
+            return `
+                <article class="mission-card is-${escapeHtml(item.tone)}">
+                    <i data-lucide="${escapeHtml(item.icon)}" aria-hidden="true"></i>
+                    <span>${escapeHtml(item.label)}</span>
+                    <strong>${escapeHtml(item.value)}</strong>
+                    <p>${escapeHtml(item.note)}</p>
+                </article>
+            `;
+        })
+        .join('');
+}
+
+function buildMissionSnapshot(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const rainChance = Number(today.precipitationProbability || 0);
+    const windSpeed = Number(current.windSpeed || 0);
+    const comfortScore = getComfortScore(current, data.airQuality);
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : null;
+    const readinessScore = getReadinessScore(data);
+    const bestWindow = getBestWeatherWindow(data.hourly || [], data.location.timezoneOffset || 0);
+    const alert = getPrimaryWeatherAlert({
+        condition: String(current.condition?.main || '').toLowerCase(),
+        rainChance,
+        windSpeed,
+        visibilityKm,
+        airQuality: data.airQuality,
+    });
+    const scoreLabel = getReadinessLabel(readinessScore);
+    const temperature = formatTemperature(current.temperature);
+
+    return {
+        score: readinessScore,
+        label: scoreLabel.label,
+        tone: scoreLabel.tone,
+        summary: `${temperature} and ${current.condition.description}. ${alert.note} Best window: ${bestWindow.label}.`,
+        items: [
+            {
+                icon: 'radar',
+                label: 'Live Scan',
+                value: alert.value,
+                note: alert.note,
+                tone: alert.tone,
+            },
+            {
+                icon: 'heart-pulse',
+                label: 'Comfort',
+                value: `${comfortScore}/100`,
+                note: getComfortLabel(comfortScore),
+                tone: comfortScore >= 75 ? 'good' : comfortScore >= 50 ? 'watch' : 'alert',
+            },
+            {
+                icon: 'calendar-clock',
+                label: 'Best Window',
+                value: bestWindow.label,
+                note: bestWindow.note,
+                tone: bestWindow.tone,
+            },
+            {
+                icon: 'cloud-rain',
+                label: 'Rain Signal',
+                value: formatPercent(rainChance),
+                note: getRainSignal(rainChance, today.rainVolume),
+                tone: rainChance >= 75 ? 'alert' : rainChance >= 45 ? 'watch' : 'good',
+            },
+        ],
+    };
+}
+
+function renderDecisionBoard(data) {
+    dom.decisionBoard.hidden = false;
+
+    const planner = buildPlannerCards(data);
+    dom.plannerGrid.innerHTML = planner
+        .map((card) => {
+            return `
+                <article class="planner-card is-${escapeHtml(card.tone)}">
+                    <div class="planner-icon"><i data-lucide="${escapeHtml(card.icon)}" aria-hidden="true"></i></div>
+                    <div>
+                        <span>${escapeHtml(card.label)}</span>
+                        <strong>${escapeHtml(card.value)}</strong>
+                        <p>${escapeHtml(card.note)}</p>
+                    </div>
+                </article>
+            `;
+        })
+        .join('');
+
+    const risks = buildRiskRadar(data);
+    dom.riskRadarGrid.innerHTML = risks
+        .map((risk) => {
+            return `
+                <article class="risk-meter is-${escapeHtml(risk.tone)}" style="--risk:${risk.value}">
+                    <div>
+                        <span>${escapeHtml(risk.label)}</span>
+                        <strong>${risk.value}%</strong>
+                    </div>
+                    <div class="risk-track" aria-hidden="true"><span></span></div>
+                    <p>${escapeHtml(risk.note)}</p>
+                </article>
+            `;
+        })
+        .join('');
+
+    dom.readinessChecklist.innerHTML = buildReadinessChecklist(data)
+        .map((item) => {
+            return `
+                <span class="readiness-chip is-${escapeHtml(item.tone)}">
+                    <i data-lucide="${escapeHtml(item.icon)}" aria-hidden="true"></i>
+                    ${escapeHtml(item.label)}
+                </span>
+            `;
+        })
+        .join('');
+}
+
+function buildPlannerCards(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const rainChance = Number(today.precipitationProbability || 0);
+    const windSpeed = Number(current.windSpeed || 0);
+    const humidity = Number(current.humidity || 0);
+    const temp = Number(current.temperature);
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : null;
+    const aqi = Number(data.airQuality?.aqi || 0);
+    const bestWindow = getBestWeatherWindow(data.hourly || [], data.location.timezoneOffset || 0);
+    const travelRisk = Math.max(rainChance, normalizeRisk(windSpeed, 4, 16), visibilityKm === null ? 0 : normalizeRisk(10 - visibilityKm, 0, 8));
+    const healthRisk = Math.max(normalizeRisk(humidity, 65, 95), normalizeRisk(temp, 31, 42), normalizeRisk(aqi, 2, 5));
+    const outdoorRisk = Math.max(rainChance, normalizeRisk(windSpeed, 6, 15), healthRisk * 0.8);
+
+    return [
+        {
+            icon: 'trees',
+            label: 'Outdoor',
+            value: outdoorRisk >= 70 ? 'Delay it' : outdoorRisk >= 42 ? 'Short window' : 'Good to go',
+            note: outdoorRisk >= 70 ? 'Outdoor plans need backup because weather risk is high.' : `Best outdoor window: ${bestWindow.label}.`,
+            tone: outdoorRisk >= 70 ? 'alert' : outdoorRisk >= 42 ? 'watch' : 'good',
+        },
+        {
+            icon: 'route',
+            label: 'Travel',
+            value: travelRisk >= 70 ? 'Move carefully' : travelRisk >= 42 ? 'Plan buffer' : 'Smooth route',
+            note: travelRisk >= 70 ? 'Rain, wind, or visibility may slow travel.' : 'Travel conditions look manageable from the live scan.',
+            tone: travelRisk >= 70 ? 'alert' : travelRisk >= 42 ? 'watch' : 'good',
+        },
+        {
+            icon: 'heart-pulse',
+            label: 'Health',
+            value: healthRisk >= 70 ? 'Take caution' : healthRisk >= 42 ? 'Stay hydrated' : 'Comfortable',
+            note: aqi >= 4 ? 'Air quality is the main health watch item.' : getComfortLabel(getComfortScore(current, data.airQuality)),
+            tone: healthRisk >= 70 ? 'alert' : healthRisk >= 42 ? 'watch' : 'good',
+        },
+        {
+            icon: 'briefcase-business',
+            label: 'Work Mode',
+            value: rainChance >= 65 ? 'Indoor focus' : 'Flexible day',
+            note: rainChance >= 65 ? 'Keep commute and outdoor tasks flexible.' : 'A stable window is available for normal plans.',
+            tone: rainChance >= 65 ? 'watch' : 'good',
+        },
+    ];
+}
+
+function buildRiskRadar(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : null;
+    const temp = Number(current.temperature);
+    const heatRisk = Math.max(normalizeRisk(temp, 30, 42), normalizeRisk(Number(current.humidity || 0), 70, 96));
+
+    return [
+        {
+            label: 'Rain',
+            value: clampRisk(Number(today.precipitationProbability || 0)),
+            note: getRainSignal(Number(today.precipitationProbability || 0), today.rainVolume),
+        },
+        {
+            label: 'Wind',
+            value: normalizeRisk(Number(current.windSpeed || 0), 4, 16),
+            note: getWindSignal(current.windSpeed),
+        },
+        {
+            label: 'Visibility',
+            value: visibilityKm === null ? 0 : normalizeRisk(10 - visibilityKm, 0, 8),
+            note: visibilityKm === null ? 'No visibility data' : `${visibilityKm.toFixed(visibilityKm >= 10 ? 0 : 1)} km view`,
+        },
+        {
+            label: 'Heat',
+            value: heatRisk,
+            note: heatRisk >= 65 ? 'Heat and humidity need attention.' : 'Heat stress risk is controlled.',
+        },
+        {
+            label: 'Air',
+            value: normalizeRisk(Number(data.airQuality?.aqi || 1), 2, 5),
+            note: data.airQuality?.label || 'AQI unavailable',
+        },
+    ].map((risk) => ({
+        ...risk,
+        tone: risk.value >= 70 ? 'alert' : risk.value >= 42 ? 'watch' : 'good',
+    }));
+}
+
+function buildReadinessChecklist(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const rainChance = Number(today.precipitationProbability || 0);
+    const windSpeed = Number(current.windSpeed || 0);
+    const humidity = Number(current.humidity || 0);
+    const aqi = Number(data.airQuality?.aqi || 0);
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : null;
+    const list = [
+        rainChance >= 45
+            ? { icon: 'umbrella', label: 'Carry rain protection', tone: rainChance >= 75 ? 'alert' : 'watch' }
+            : { icon: 'sun', label: 'Rain gear optional', tone: 'good' },
+        windSpeed >= 10
+            ? { icon: 'wind', label: 'Secure loose items', tone: 'watch' }
+            : { icon: 'badge-check', label: 'Wind looks steady', tone: 'good' },
+        humidity >= 80
+            ? { icon: 'droplets', label: 'Hydrate more today', tone: 'watch' }
+            : { icon: 'cup-soda', label: 'Normal hydration', tone: 'good' },
+        aqi >= 4
+            ? { icon: 'shield-alert', label: 'Limit long exposure', tone: 'alert' }
+            : { icon: 'sparkles', label: 'Air watch normal', tone: 'good' },
+        visibilityKm !== null && visibilityKm < 3
+            ? { icon: 'eye-off', label: 'Use lights while moving', tone: 'watch' }
+            : { icon: 'eye', label: 'Visibility okay', tone: 'good' },
+    ];
+
+    return list;
+}
+
+function getReadinessScore(data) {
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const comfortScore = getComfortScore(current, data.airQuality);
+    const rainPenalty = Math.min(26, Number(today.precipitationProbability || 0) * 0.28);
+    const windPenalty = Math.min(20, Math.max(0, Number(current.windSpeed || 0) - 5) * 1.8);
+    const visibilityKm = Number.isFinite(current.visibility) ? current.visibility / 1000 : 10;
+    const visibilityPenalty = visibilityKm < 5 ? (5 - visibilityKm) * 5 : 0;
+    const aqiPenalty = data.airQuality?.aqi >= 4 ? 18 : data.airQuality?.aqi === 3 ? 8 : 0;
+    const score = comfortScore - rainPenalty - windPenalty - visibilityPenalty - aqiPenalty;
+    return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function getReadinessLabel(score) {
+    if (score >= 82) return { label: 'Prime conditions', tone: 'good' };
+    if (score >= 64) return { label: 'Ready with awareness', tone: 'good' };
+    if (score >= 44) return { label: 'Watch the sky', tone: 'watch' };
+    return { label: 'Caution mode', tone: 'alert' };
+}
+
+function getBestWeatherWindow(hourly, timezoneOffset) {
+    if (!hourly.length) {
+        return {
+            label: 'Live now',
+            note: 'Hourly windows will unlock when forecast slots are available.',
+            tone: 'watch',
+        };
+    }
+
+    const ranked = hourly.slice(0, 8).map((slot) => {
+        const rain = Number(slot.precipitationProbability || 0);
+        const wind = Number(slot.windSpeed || 0);
+        const humidity = Number(slot.humidity || 0);
+        const score = rain + normalizeRisk(wind, 4, 15) + normalizeRisk(humidity, 70, 96) * 0.45;
+        return { slot, score };
+    }).sort((a, b) => a.score - b.score)[0];
+
+    const label = formatLocalTime(ranked.slot.timestamp, timezoneOffset);
+    const rain = Number(ranked.slot.precipitationProbability || 0);
+    return {
+        label,
+        note: `${formatPercent(rain)} rain chance with ${formatWind(ranked.slot.windSpeed)} wind.`,
+        tone: ranked.score >= 120 ? 'alert' : ranked.score >= 70 ? 'watch' : 'good',
+    };
+}
+
+function normalizeRisk(value, safe, danger) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    if (danger === safe) return 0;
+    return clampRisk(((number - safe) / (danger - safe)) * 100);
+}
+
+function clampRisk(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.max(0, Math.min(100, Math.round(number)));
 }
 
 function renderSmartBrief(data) {
@@ -1704,6 +2058,152 @@ function renderAirQuality(airQuality) {
             `;
         })
         .join('');
+}
+
+function renderFavoritePlaces() {
+    const favorites = state.favoritePlaces;
+    dom.favoritePlacesPanel.hidden = !favorites.length;
+    dom.favoritePlacesCount.textContent = `${favorites.length} saved`;
+
+    if (!favorites.length) {
+        dom.favoritePlacesGrid.innerHTML = '';
+        return;
+    }
+
+    dom.favoritePlacesGrid.innerHTML = favorites
+        .map((place) => {
+            const isActive = state.weather && place.label.toLowerCase() === formatLocation(state.weather.location).toLowerCase();
+            return `
+                <article class="favorite-place-card${isActive ? ' is-active' : ''}">
+                    <button class="favorite-place-load" type="button" data-favorite-label="${escapeHtml(place.label)}">
+                        <i data-lucide="${isActive ? 'map-pin-check' : 'map-pin'}" aria-hidden="true"></i>
+                        <span>
+                            <strong>${escapeHtml(place.label)}</strong>
+                            <small>${escapeHtml(place.note || 'Saved weather desk')}</small>
+                        </span>
+                    </button>
+                    <button class="favorite-place-remove" type="button" data-favorite-label="${escapeHtml(place.label)}" aria-label="Remove ${escapeHtml(place.label)}">
+                        <i data-lucide="x" aria-hidden="true"></i>
+                    </button>
+                </article>
+            `;
+        })
+        .join('');
+
+    Array.from(dom.favoritePlacesGrid.querySelectorAll('.favorite-place-load')).forEach((button) => {
+        button.addEventListener('click', () => {
+            const favorite = state.favoritePlaces.find((place) => place.label === button.dataset.favoriteLabel);
+            if (!favorite) return;
+            dom.cityInput.value = favorite.label;
+            loadWeather(favorite.params, { label: favorite.label, saveRecent: true });
+        });
+    });
+
+    Array.from(dom.favoritePlacesGrid.querySelectorAll('.favorite-place-remove')).forEach((button) => {
+        button.addEventListener('click', () => {
+            removeFavoritePlace(button.dataset.favoriteLabel);
+        });
+    });
+}
+
+function saveCurrentPlace() {
+    if (!state.weather) {
+        showTemporaryStatus('Load a city first, then save it to your weather desk.', 'success');
+        return;
+    }
+
+    const label = formatLocation(state.weather.location);
+    const favorite = {
+        label,
+        params: { ...state.lastRequest.params },
+        note: `${formatTemperature(state.weather.current.temperature)} - ${state.weather.current.condition.description}`,
+        savedAt: new Date().toISOString(),
+    };
+
+    state.favoritePlaces = [
+        favorite,
+        ...state.favoritePlaces.filter((place) => place.label.toLowerCase() !== label.toLowerCase()),
+    ].slice(0, 6);
+
+    localStorage.setItem(FAVORITE_PLACES_KEY, JSON.stringify(state.favoritePlaces));
+    renderFavoritePlaces();
+    renderIcons();
+    showTemporaryStatus(`${label} saved to your weather desk.`, 'success');
+}
+
+function removeFavoritePlace(label) {
+    state.favoritePlaces = state.favoritePlaces.filter((place) => place.label !== label);
+    localStorage.setItem(FAVORITE_PLACES_KEY, JSON.stringify(state.favoritePlaces));
+    renderFavoritePlaces();
+    renderIcons();
+}
+
+function loadFavoritePlaces() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(FAVORITE_PLACES_KEY) || '[]');
+        return Array.isArray(parsed)
+            ? parsed
+                .filter((place) => place?.label && place?.params && typeof place.label === 'string')
+                .slice(0, 6)
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+async function shareWeatherReport() {
+    if (!state.weather) {
+        showTemporaryStatus('Load live weather first, then share the report.', 'success');
+        return;
+    }
+
+    const text = buildWeatherReportText(state.weather);
+
+    try {
+        if (navigator.share) {
+            await navigator.share({
+                title: 'Oxygen Weather Report',
+                text,
+                url: window.location.href,
+            });
+            showTemporaryStatus('Weather report shared.', 'success');
+            return;
+        }
+
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            showTemporaryStatus('Weather report copied to clipboard.', 'success');
+            return;
+        }
+
+        showTemporaryStatus('Report is ready, but this browser cannot copy automatically.', 'success');
+    } catch (error) {
+        if (error?.name === 'AbortError') return;
+        showStatus('Weather report could not be shared from this browser.');
+    }
+}
+
+function buildWeatherReportText(data) {
+    const location = formatLocation(data.location);
+    const current = data.current;
+    const today = data.forecast?.[0] || {};
+    const readiness = getReadinessLabel(getReadinessScore(data));
+    const alert = getPrimaryWeatherAlert({
+        condition: String(current.condition?.main || '').toLowerCase(),
+        rainChance: Number(today.precipitationProbability || 0),
+        windSpeed: Number(current.windSpeed || 0),
+        visibilityKm: Number.isFinite(current.visibility) ? current.visibility / 1000 : null,
+        airQuality: data.airQuality,
+    });
+
+    return [
+        `Oxygen Weather - ${location}`,
+        `${formatTemperature(current.temperature)} (${current.condition.description}), feels like ${formatTemperature(current.feelsLike)}.`,
+        `Readiness: ${readiness.label}.`,
+        `Alert: ${alert.value} - ${alert.note}`,
+        `Rain chance: ${formatPercent(today.precipitationProbability)}. Wind: ${formatWind(current.windSpeed)}. Humidity: ${formatPercent(current.humidity)}.`,
+        `Updated: ${getUpdatedLabel(data)}.`,
+    ].join('\n');
 }
 
 function renderRecentSearches() {

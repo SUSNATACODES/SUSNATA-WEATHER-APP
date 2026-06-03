@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'contact-form-20260603';
+const UI_BUILD = 'mission-control-20260603';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -30,6 +30,9 @@ const DEFAULT_CORS_ORIGINS = [
   'https://oxygen-weather.blogspot.com',
   'https://www.oxygen-weather.blogspot.com',
   'https://susnata-weather-app.onrender.com',
+  'http://127.0.0.1:5179',
+  'http://localhost:5179',
+  'null',
 ];
 const CORS_ALLOWED_ORIGINS = new Set([
   ...DEFAULT_CORS_ORIGINS,
