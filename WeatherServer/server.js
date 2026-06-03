@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'blogger-public-home-20260603';
+const UI_BUILD = 'contact-form-20260603';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -24,6 +24,8 @@ const WEATHER_HISTORY_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 const WEATHER_HISTORY_MAX_DAYS = 5;
 const URGENT_ALERT_INTERVAL_MS = 30 * 60 * 1000;
 const URGENT_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const CONTACT_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const CONTACT_RATE_LIMIT_MAX = 4;
 const DEFAULT_CORS_ORIGINS = [
   'https://oxygen-weather.blogspot.com',
   'https://www.oxygen-weather.blogspot.com',
@@ -38,6 +40,7 @@ const CORS_ALLOWED_ORIGINS = new Set([
 ]);
 const PUBLIC_APP_URL = String(process.env.PUBLIC_APP_URL || 'https://oxygen-weather.blogspot.com').replace(/\/$/, '');
 const weatherCache = new Map();
+const contactRateBuckets = new Map();
 let mailTransporter;
 let schedulerRunning = false;
 
@@ -135,6 +138,51 @@ app.get('/auth/config', (req, res) => {
   res.json({
     ok: true,
     googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  });
+});
+
+app.post('/contact', async (req, res) => {
+  const parsed = parseContactMessageRequest(req.body);
+  if (!parsed.ok) {
+    return res.status(400).json({ error: parsed.error });
+  }
+
+  const rateLimit = getContactRateLimit(req);
+  if (rateLimit.limited) {
+    return res.status(429).json({
+      error: `Please wait ${rateLimit.retryAfterMinutes} minute before sending another message.`,
+    });
+  }
+
+  if (!isMailConfigured()) {
+    return res.status(503).json({
+      error: 'Contact mail is not connected on the server yet. Add MAIL_USER and MAIL_PASS on Render first.',
+    });
+  }
+
+  const recipient = getContactRecipient();
+  if (!recipient) {
+    return res.status(503).json({
+      error: 'Contact destination is not configured yet. Add CONTACT_EMAIL or MAIL_USER on Render.',
+    });
+  }
+
+  const sent = await sendEmail({
+    to: recipient,
+    replyTo: parsed.email,
+    subject: `Oxygen Weather contact from ${parsed.name}`,
+    ...buildContactEmail(parsed, req),
+  });
+
+  if (!sent) {
+    return res.status(502).json({
+      error: 'The mail server did not accept the contact message. Check Gmail app password settings.',
+    });
+  }
+
+  res.json({
+    ok: true,
+    message: 'Message sent. Susnata Codes will receive it by email.',
   });
 });
 
@@ -692,6 +740,90 @@ function parseMailSubscriptionRequest(body) {
   };
 }
 
+function parseContactMessageRequest(body) {
+  const name = typeof body?.name === 'string'
+    ? body.name.trim().replace(/\s+/g, ' ')
+    : '';
+  const email = typeof body?.email === 'string'
+    ? body.email.trim().toLowerCase()
+    : '';
+  const message = typeof body?.message === 'string'
+    ? body.message.replace(/\r\n/g, '\n').trim()
+    : '';
+  const page = typeof body?.page === 'string'
+    ? body.page.trim().slice(0, 240)
+    : '';
+  const currentWeather = typeof body?.currentWeather === 'string'
+    ? body.currentWeather.trim().replace(/\s+/g, ' ').slice(0, 140)
+    : '';
+
+  if (name.length < 2) {
+    return { ok: false, error: 'Enter your name.' };
+  }
+
+  if (name.length > 80) {
+    return { ok: false, error: 'Name is too long.' };
+  }
+
+  if (!isValidEmail(email)) {
+    return { ok: false, error: 'Enter a valid email address.' };
+  }
+
+  if (email.length > 120) {
+    return { ok: false, error: 'Email address is too long.' };
+  }
+
+  if (message.length < 8) {
+    return { ok: false, error: 'Write a message with at least 8 characters.' };
+  }
+
+  if (message.length > 900) {
+    return { ok: false, error: 'Message is too long. Keep it under 900 characters.' };
+  }
+
+  return {
+    ok: true,
+    name,
+    email,
+    message,
+    page,
+    currentWeather,
+  };
+}
+
+function getContactRateLimit(req) {
+  const key = getClientKey(req);
+  const now = Date.now();
+  const existing = contactRateBuckets.get(key);
+
+  if (!existing || existing.expiresAt <= now) {
+    contactRateBuckets.set(key, {
+      count: 1,
+      expiresAt: now + CONTACT_RATE_LIMIT_WINDOW_MS,
+    });
+    return { limited: false };
+  }
+
+  existing.count += 1;
+  contactRateBuckets.set(key, existing);
+
+  if (existing.count <= CONTACT_RATE_LIMIT_MAX) {
+    return { limited: false };
+  }
+
+  return {
+    limited: true,
+    retryAfterMinutes: Math.max(1, Math.ceil((existing.expiresAt - now) / 60000)),
+  };
+}
+
+function getClientKey(req) {
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '')
+    .split(',')[0]
+    .trim();
+  return forwardedFor || req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -905,6 +1037,10 @@ function getMailFrom() {
   return process.env.MAIL_FROM || `Oxygen Weather <${getMailUser()}>`;
 }
 
+function getContactRecipient() {
+  return process.env.CONTACT_EMAIL || process.env.CONTACT_TO || getMailUser();
+}
+
 function getMailTransporter() {
   if (!isMailConfigured()) {
     return null;
@@ -926,7 +1062,7 @@ function getMailTransporter() {
   return mailTransporter;
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const transporter = getMailTransporter();
   if (!transporter) {
     return false;
@@ -937,6 +1073,7 @@ async function sendEmail({ to, subject, html, text }) {
       from: getMailFrom(),
       to,
       subject,
+      replyTo: replyTo || undefined,
       html,
       text,
     });
@@ -1231,6 +1368,39 @@ function getAlertSignature(alerts) {
     .update(alerts.map((alert) => `${alert.code}:${alert.detail}`).join('|'))
     .digest('hex')
     .slice(0, 20);
+}
+
+function buildContactEmail(contact, req) {
+  const sourcePage = contact.page || PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`;
+  const currentWeather = contact.currentWeather || 'Not provided';
+  const sentAt = new Date().toISOString();
+  const text = [
+    'New Oxygen Weather contact message.',
+    `Name: ${contact.name}`,
+    `Email: ${contact.email}`,
+    `Current weather: ${currentWeather}`,
+    `Page: ${sourcePage}`,
+    `Sent: ${sentAt}`,
+    '',
+    contact.message,
+  ].join('\n');
+
+  return {
+    text,
+    html: baseEmailTemplate({
+      title: 'New contact message',
+      preheader: `${escapeHtml(contact.name)} sent a message through Oxygen Weather`,
+      body: `
+        <p><strong>Name:</strong> ${escapeHtml(contact.name)}</p>
+        <p><strong>Email:</strong> <a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a></p>
+        <p><strong>Current weather:</strong> ${escapeHtml(currentWeather)}</p>
+        <p><strong>Page:</strong> <a href="${escapeHtml(sourcePage)}">${escapeHtml(sourcePage)}</a></p>
+        <h2>Message</h2>
+        <p>${escapeHtml(contact.message).replace(/\n/g, '<br>')}</p>
+        <p class="note">Sent from Oxygen Weather contact form at ${escapeHtml(sentAt)}.</p>
+      `,
+    }),
+  };
 }
 
 function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {

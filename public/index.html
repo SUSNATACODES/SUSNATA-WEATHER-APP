@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=profile-auth-reminder-20260602">
+    <link rel="stylesheet" href="style.css?v=contact-form-20260603">
 </head>
 <body>
     <div class="weather-effects" aria-hidden="true"></div>
@@ -298,36 +298,41 @@
                     </div>
                 </div>
 
-                <div class="contact-actions" aria-label="Contact links">
-                    <a class="contact-action is-primary" href="https://wa.me/918392045833" target="_blank" rel="noopener noreferrer">
-                        <i data-lucide="send"></i>
-                        <span>
-                            <strong>WhatsApp</strong>
-                            <small>Quick message</small>
-                        </span>
-                    </a>
-                    <a class="contact-action" href="https://instagram.com/capture_withsusnata" target="_blank" rel="noopener noreferrer">
-                        <i data-lucide="camera"></i>
-                        <span>
-                            <strong>Instagram</strong>
-                            <small>Visual updates</small>
-                        </span>
-                    </a>
-                    <a class="contact-action" href="https://github.com/SUSNATACODES" target="_blank" rel="noopener noreferrer">
-                        <i data-lucide="github"></i>
-                        <span>
-                            <strong>GitHub</strong>
-                            <small>Source code</small>
-                        </span>
-                    </a>
-                    <a class="contact-action" href="https://susnatacodes.blogspot.com" target="_blank" rel="noopener noreferrer">
-                        <i data-lucide="external-link"></i>
-                        <span>
-                            <strong>Blog</strong>
-                            <small>Susnata Codes</small>
-                        </span>
-                    </a>
-                </div>
+                <form class="contact-form" id="contactForm" novalidate>
+                    <label class="contact-field" for="contactName">
+                        <span>Name</span>
+                        <div class="contact-input">
+                            <i data-lucide="user-round" aria-hidden="true"></i>
+                            <input id="contactName" name="name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" required>
+                        </div>
+                    </label>
+
+                    <label class="contact-field" for="contactEmail">
+                        <span>Email</span>
+                        <div class="contact-input">
+                            <i data-lucide="mail" aria-hidden="true"></i>
+                            <input id="contactEmail" name="email" type="email" autocomplete="email" maxlength="120" placeholder="yourmail@gmail.com" required>
+                        </div>
+                    </label>
+
+                    <label class="contact-field contact-field-wide" for="contactMessage">
+                        <span>Message</span>
+                        <div class="contact-input contact-message-input">
+                            <i data-lucide="message-square-text" aria-hidden="true"></i>
+                            <textarea id="contactMessage" name="message" rows="5" minlength="8" maxlength="900" placeholder="Write your message here..." required></textarea>
+                        </div>
+                    </label>
+
+                    <div class="contact-form-footer">
+                        <p><i data-lucide="shield-check" aria-hidden="true"></i> Sent through the Oxygen Weather mail server.</p>
+                        <button class="primary-button contact-submit" id="contactSubmit" type="submit">
+                            <i data-lucide="send"></i>
+                            <span>Send Message</span>
+                        </button>
+                    </div>
+
+                    <p class="contact-status" id="contactStatus" role="status" hidden></p>
+                </form>
             </section>
         </main>
 
@@ -408,7 +413,7 @@
         </button>
     </div>
 
-    <script src="script.js?v=profile-auth-reminder-20260602" defer></script>
+    <script src="script.js?v=contact-form-20260603" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer onload="window.renderIcons && window.renderIcons()"></script>
 </body>
 </html>

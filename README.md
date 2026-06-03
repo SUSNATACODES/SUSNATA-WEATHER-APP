@@ -57,10 +57,12 @@ MAIL_PASS=your_gmail_app_password
 MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=465
+CONTACT_EMAIL=your_contact_destination@gmail.com
 ```
 
 For Gmail, create an app password in your Google account and use that as `MAIL_PASS`.
 The website will show a Gmail server status message. If `MAIL_USER` and `MAIL_PASS` are missing on Render, subscriptions can be saved but emails cannot be delivered yet.
+The contact form sends to `CONTACT_EMAIL`; if it is not set, it sends to `MAIL_USER`.
 For exact midnight delivery, use an always-on Render service or an external uptime/cron ping; free sleeping services can only run the scheduler while the server is awake.
 
 Optional Google Sign-In:
@@ -91,6 +93,7 @@ MAIL_PASS=your_gmail_app_password
 MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=465
+CONTACT_EMAIL=your_contact_destination@gmail.com
 GOOGLE_CLIENT_ID=your_google_oauth_web_client_id.apps.googleusercontent.com
 ```
 

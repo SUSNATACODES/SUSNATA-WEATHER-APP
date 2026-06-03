@@ -73,6 +73,12 @@ const dom = {
     feedbackBtn: document.getElementById('feedbackBtn'),
     contactPanel: document.getElementById('contactPanel'),
     contactSection: document.getElementById('contactSection'),
+    contactForm: document.getElementById('contactForm'),
+    contactName: document.getElementById('contactName'),
+    contactEmail: document.getElementById('contactEmail'),
+    contactMessage: document.getElementById('contactMessage'),
+    contactSubmit: document.getElementById('contactSubmit'),
+    contactStatus: document.getElementById('contactStatus'),
     weatherEffects: document.querySelector('.weather-effects'),
     statusMessage: document.getElementById('statusMessage'),
     loading: document.getElementById('loading'),
@@ -157,7 +163,9 @@ function wireEvents() {
     if (state.loginEmail) {
         dom.loginEmail.value = state.loginEmail;
         dom.alertEmail.value = state.loginEmail;
+        dom.contactEmail.value = state.loginEmail;
     }
+    syncContactProfileFields();
     syncMailPreferenceControls();
 
     dom.weatherForm.addEventListener('submit', (event) => {
@@ -216,6 +224,11 @@ function wireEvents() {
 
     dom.mailAlertsTest.addEventListener('click', () => {
         sendMailAlertsTest();
+    });
+
+    dom.contactForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        sendContactMessage();
     });
 
     dom.dailyReportToggle.addEventListener('change', () => {
@@ -702,6 +715,7 @@ function renderAuthState() {
         }
         dom.loginEmail.value = profile.email;
         dom.alertEmail.value = profile.email;
+        syncContactProfileFields();
         showLoginStatus(`Special welcome to you, ${profile.name}.`, 'success');
     } else {
         dom.loginOpenBtn.classList.remove('is-profile');
@@ -762,6 +776,98 @@ function focusMailAlerts() {
 
 function focusContactSection() {
     dom.contactSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function syncContactProfileFields() {
+    const profile = state.userProfile;
+    if (profile) {
+        if (!dom.contactName.value.trim()) {
+            dom.contactName.value = profile.name || '';
+        }
+
+        if (!dom.contactEmail.value.trim()) {
+            dom.contactEmail.value = profile.email || '';
+        }
+
+        return;
+    }
+
+    if (state.loginEmail && !dom.contactEmail.value.trim()) {
+        dom.contactEmail.value = state.loginEmail;
+    }
+}
+
+async function sendContactMessage() {
+    const name = dom.contactName.value.trim().replace(/\s+/g, ' ');
+    const email = dom.contactEmail.value.trim().toLowerCase();
+    const message = dom.contactMessage.value.trim();
+
+    if (name.length < 2) {
+        showContactStatus('Enter your name.', 'error');
+        dom.contactName.focus();
+        return;
+    }
+
+    if (!email || !dom.contactEmail.checkValidity()) {
+        showContactStatus('Enter a valid email address.', 'error');
+        dom.contactEmail.focus();
+        return;
+    }
+
+    if (message.length < 8) {
+        showContactStatus('Write a message with at least 8 characters.', 'error');
+        dom.contactMessage.focus();
+        return;
+    }
+
+    setContactBusy(true);
+    showContactStatus('Sending your message.', 'info');
+
+    try {
+        const response = await fetch(apiUrl('/contact'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                email,
+                message,
+                page: window.location.href,
+                currentWeather: state.weather?.location ? formatLocation(state.weather.location) : '',
+            }),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Message could not be sent right now.');
+        }
+
+        dom.contactMessage.value = '';
+        showContactStatus(data.message || 'Message sent. Susnata Codes will receive it by email.', 'success');
+    } catch (error) {
+        showContactStatus(error.message || 'Message could not be sent right now.', 'error');
+    } finally {
+        setContactBusy(false);
+    }
+}
+
+function setContactBusy(isBusy) {
+    [
+        dom.contactName,
+        dom.contactEmail,
+        dom.contactMessage,
+        dom.contactSubmit,
+    ].forEach((element) => {
+        element.disabled = isBusy;
+    });
+
+    dom.contactSubmit.querySelector('span').textContent = isBusy ? 'Sending' : 'Send Message';
+}
+
+function showContactStatus(message, tone = 'info') {
+    dom.contactStatus.textContent = message;
+    dom.contactStatus.classList.toggle('is-success', tone === 'success');
+    dom.contactStatus.classList.toggle('is-error', tone === 'error');
+    dom.contactStatus.hidden = false;
 }
 
 function fillMailLocationFromCurrentWeather() {
