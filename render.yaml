@@ -12,6 +12,12 @@ services:
         sync: false
       - key: PUBLIC_APP_URL
         value: https://oxygen-weather.blogspot.com
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Oxygen Weather
       - key: MAIL_USER
         sync: false
       - key: MAIL_PASS

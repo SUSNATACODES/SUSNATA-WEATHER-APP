@@ -1135,7 +1135,7 @@ async function loadMailAlertStatus() {
 
         const statusParts = [data.message];
         if (!data.mailConfigured) {
-            statusParts.push('Contact form, test mail, emergency alerts, and 12:00 AM reports cannot send until Gmail SMTP is connected.');
+            statusParts.push('Contact form, test mail, emergency alerts, and 12:00 AM reports cannot send until email delivery is connected.');
         }
         if (Number(data.activeSubscriptions) === 0) {
             statusParts.push('No active subscriptions are saved on this backend yet.');

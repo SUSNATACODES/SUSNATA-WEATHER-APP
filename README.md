@@ -49,20 +49,17 @@ PORT=3000
 PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Optional Gmail delivery for mail alerts:
+Optional free email delivery for contact and mail alerts:
 
 ```env
-MAIL_USER=your_gmail_address@gmail.com
-MAIL_PASS=your_gmail_app_password
-MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=465
+BREVO_API_KEY=your_brevo_api_key
+BREVO_SENDER_EMAIL=verified_sender_email@gmail.com
+BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=your_contact_destination@gmail.com
 ```
 
-For Gmail, create an app password in your Google account and use that as `MAIL_PASS`.
-The website will show a Gmail server status message. If `MAIL_USER` and `MAIL_PASS` are missing on Render, subscriptions can be saved but emails cannot be delivered yet.
-The contact form sends to `CONTACT_EMAIL`; if it is not set, it sends to `MAIL_USER`.
+Render Free blocks outbound SMTP ports, so Gmail SMTP is not reliable on the free plan.
+Use Brevo's HTTPS email API for free delivery. The contact form sends to `CONTACT_EMAIL`.
 For exact midnight delivery, use an always-on Render service or an external uptime/cron ping; free sleeping services can only run the scheduler while the server is awake.
 
 Optional Google Sign-In:
@@ -88,11 +85,9 @@ The repository includes `render.yaml`. In Render, keep `rootDir` set to `Weather
 ```env
 API_KEY=your_openweather_api_key_here
 PUBLIC_APP_URL=https://oxygen-weather.blogspot.com
-MAIL_USER=your_gmail_address@gmail.com
-MAIL_PASS=your_gmail_app_password
-MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=465
+BREVO_API_KEY=your_brevo_api_key
+BREVO_SENDER_EMAIL=verified_sender_email@gmail.com
+BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=your_contact_destination@gmail.com
 MAIL_CRON_SECRET=optional_private_scheduler_secret
 GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
@@ -124,18 +119,20 @@ http://127.0.0.1:5179/
 
 After the Blogger XML is published, reload the website. The Google button will open the full `accounts.google.com` account chooser and return to Oxygen Weather after login.
 
-### Gmail Contact And Report Setup
+### Free Contact And Report Email Setup
 
-Contact form email, Send Test, important alerts, and 12:00 AM reports all use the same Gmail SMTP connection. They cannot send until these Render variables are valid:
+Contact form email, Send Test, important alerts, and 12:00 AM reports all use the same email sender. On Render Free, use Brevo's HTTPS API because SMTP ports are blocked.
+
+Create a Brevo account, verify a sender email, create an SMTP/API key, then add:
 
 ```env
-MAIL_USER=your_gmail_address@gmail.com
-MAIL_PASS=your_16_character_google_app_password
-MAIL_FROM="Oxygen Weather <your_gmail_address@gmail.com>"
+BREVO_API_KEY=your_brevo_api_key
+BREVO_SENDER_EMAIL=verified_sender_email@gmail.com
+BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=where_contact_messages_should_arrive@gmail.com
 ```
 
-Use a Google **App Password** for `MAIL_PASS`, not your normal Gmail password. If 2-Step Verification is off, Google will not create an app password.
+Gmail SMTP variables are still supported as a fallback for paid/non-blocked hosts, but they are not the recommended free Render setup.
 
 ### Midnight Report Reliability
 

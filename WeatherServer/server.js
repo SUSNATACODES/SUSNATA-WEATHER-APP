@@ -15,6 +15,7 @@ const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
 const UI_BUILD = 'mail-diagnostics-20260603';
+const BREVO_SEND_EMAIL_URL = 'https://api.brevo.com/v3/smtp/email';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
@@ -166,7 +167,7 @@ app.post('/contact', async (req, res) => {
 
   if (!isMailConfigured()) {
     return res.status(503).json({
-      error: 'Contact mail is not connected on the server yet. Add MAIL_USER and MAIL_PASS on Render first.',
+      error: 'Contact mail is not connected on the server yet. Add BREVO_API_KEY and a verified sender email on Render first.',
     });
   }
 
@@ -186,7 +187,7 @@ app.post('/contact', async (req, res) => {
 
   if (!sent) {
     return res.status(502).json({
-      error: 'The mail server could not send the contact message. On Render Free, SMTP ports are blocked; use a paid Render instance or an HTTP email provider.',
+      error: 'The mail service could not send the contact message. Check the Brevo API key, sender verification, and recipient address.',
     });
   }
 
@@ -203,6 +204,9 @@ app.get('/mail-alerts/status', async (req, res) => {
   res.json({
     ok: true,
     mailConfigured: isMailConfigured(),
+    mailProvider: getMailProviderLabel(),
+    mailApiConfigured: isBrevoConfigured(),
+    smtpConfigured: isSmtpConfigured(),
     mailUserConfigured: Boolean(getMailUser()),
     contactRecipientConfigured: Boolean(getContactRecipient()),
     schedulerRunning,
@@ -213,9 +217,7 @@ app.get('/mail-alerts/status', async (req, res) => {
     defaultDailyReportTime: '00:00',
     historySampleMinutes: Math.round(WEATHER_HISTORY_SAMPLE_INTERVAL_MS / 60000),
     cronEndpoint: `${getRequestBaseUrl(req)}/mail-alerts/cron`,
-    message: isMailConfigured()
-      ? 'Gmail SMTP is connected. Automatic reports can be delivered.'
-      : 'Gmail SMTP is not connected yet. Add MAIL_USER and MAIL_PASS on Render to send automatic emails.',
+    message: getMailStatusMessage(),
   });
 });
 
@@ -308,7 +310,7 @@ app.post('/mail-alerts/subscribe', async (req, res) => {
         : 'Daily report is turned off for this subscription.',
       message: confirmationSent
         ? 'Mail alerts are enabled. Check your inbox for confirmation and use Send test if you want to verify again.'
-        : 'Mail alert settings are saved, but Gmail SMTP is not connected on Render yet. Add MAIL_USER and MAIL_PASS to start automatic delivery.',
+        : 'Mail alert settings are saved, but email delivery is not connected yet. Add BREVO_API_KEY and a verified sender email to start automatic delivery.',
     });
   } catch (error) {
     sendWeatherError(res, error);
@@ -329,7 +331,7 @@ app.post('/mail-alerts/test', async (req, res) => {
 
   if (!isMailConfigured()) {
     return res.status(503).json({
-      error: 'Gmail SMTP is not connected on the server. Add MAIL_USER and MAIL_PASS on Render first.',
+      error: 'Email delivery is not connected on the server. Add BREVO_API_KEY and a verified sender email on Render first.',
     });
   }
 
@@ -367,7 +369,7 @@ app.post('/mail-alerts/test', async (req, res) => {
 
     if (!sent) {
       return res.status(502).json({
-        error: 'The mail server could not send the test message. On Render Free, SMTP ports are blocked; use a paid Render instance or an HTTP email provider.',
+        error: 'The mail service could not send the test message. Check the Brevo API key, sender verification, and recipient address.',
       });
     }
 
@@ -1056,7 +1058,48 @@ function getHistorySamples(history, subscription, dateKey) {
 }
 
 function isMailConfigured() {
+  return isBrevoConfigured() || isSmtpConfigured();
+}
+
+function isBrevoConfigured() {
+  return Boolean(getBrevoApiKey() && getBrevoSender().email);
+}
+
+function isSmtpConfigured() {
   return Boolean(getMailUser() && getMailPassword());
+}
+
+function getMailProviderLabel() {
+  if (isBrevoConfigured()) return 'brevo-api';
+  if (isSmtpConfigured()) return 'smtp';
+  return 'none';
+}
+
+function getMailStatusMessage() {
+  if (isBrevoConfigured()) {
+    return 'Brevo HTTPS email API is connected. Contact mail and automatic reports can be delivered on Render Free.';
+  }
+
+  if (isSmtpConfigured()) {
+    return 'SMTP values are configured, but Render Free blocks SMTP ports. Use Brevo API for free delivery or a paid Render instance for SMTP.';
+  }
+
+  return 'Email delivery is not connected yet. Add BREVO_API_KEY and a verified sender email on Render for free HTTPS mail delivery.';
+}
+
+function getBrevoApiKey() {
+  return normalizeEnvText(process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY);
+}
+
+function getBrevoSender() {
+  const configuredSender = parseEmailIdentity(
+    normalizeEnvText(process.env.BREVO_SENDER_EMAIL || process.env.MAIL_FROM)
+  );
+  const fallbackEmail = normalizeEnvText(process.env.MAIL_USER || process.env.CONTACT_EMAIL || process.env.CONTACT_TO);
+  const email = configuredSender.email || fallbackEmail;
+  const name = normalizeEnvText(process.env.BREVO_SENDER_NAME || configuredSender.name || 'Oxygen Weather');
+
+  return { email, name };
 }
 
 function getMailUser() {
@@ -1075,6 +1118,23 @@ function getContactRecipient() {
   return normalizeEnvText(process.env.CONTACT_EMAIL || process.env.CONTACT_TO) || getMailUser();
 }
 
+function parseEmailIdentity(value) {
+  const text = normalizeEnvText(value).replace(/^"|"$/g, '');
+  const angleMatch = text.match(/^(.*?)<([^<>@\s]+@[^<>@\s]+\.[^<>@\s]+)>$/);
+  if (angleMatch) {
+    return {
+      name: angleMatch[1].trim().replace(/^"|"$/g, ''),
+      email: angleMatch[2].trim(),
+    };
+  }
+
+  if (isValidEmail(text)) {
+    return { name: '', email: text };
+  }
+
+  return { name: text, email: '' };
+}
+
 function normalizeEnvText(value) {
   return String(value || '').trim();
 }
@@ -1084,7 +1144,7 @@ function normalizeMailPassword(value) {
 }
 
 function getMailTransporter() {
-  if (!isMailConfigured()) {
+  if (!isSmtpConfigured()) {
     return null;
   }
 
@@ -1108,6 +1168,10 @@ function getMailTransporter() {
 }
 
 async function sendEmail({ to, subject, html, text, replyTo }) {
+  if (isBrevoConfigured()) {
+    return sendBrevoEmail({ to, subject, html, text, replyTo });
+  }
+
   const transporter = getMailTransporter();
   if (!transporter) {
     return false;
@@ -1127,6 +1191,54 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
     console.error('Failed to send weather mail:', error.message);
     return false;
   }
+}
+
+async function sendBrevoEmail({ to, subject, html, text, replyTo }) {
+  const sender = getBrevoSender();
+  const recipients = normalizeEmailList(to).map((email) => ({ email }));
+
+  if (!recipients.length || !sender.email) {
+    return false;
+  }
+
+  const payload = {
+    sender,
+    to: recipients,
+    subject,
+    htmlContent: html,
+    textContent: text,
+  };
+
+  if (replyTo && isValidEmail(replyTo)) {
+    payload.replyTo = { email: replyTo };
+  }
+
+  try {
+    await axios.post(BREVO_SEND_EMAIL_URL, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': getBrevoApiKey(),
+      },
+      timeout: MAIL_SOCKET_TIMEOUT_MS,
+    });
+    return true;
+  } catch (error) {
+    const status = error.response?.status;
+    const detail = error.response?.data?.message || error.response?.data?.error || error.message;
+    console.error('Failed to send Brevo mail:', status ? `${status} ${detail}` : detail);
+    return false;
+  }
+}
+
+function normalizeEmailList(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap(normalizeEmailList);
+  }
+
+  return String(value || '')
+    .split(',')
+    .map((email) => email.trim())
+    .filter(isValidEmail);
 }
 
 function startMailScheduler() {
