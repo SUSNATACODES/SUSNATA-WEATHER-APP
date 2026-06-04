@@ -20,6 +20,8 @@ const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
 const SUBSCRIPTIONS_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-subscriptions.json');
 const HISTORY_FILE = path.join(SUBSCRIPTIONS_DIR, 'weather-mail-history.json');
 const MAIL_CHECK_INTERVAL_MS = 60 * 1000;
+const MAIL_CONNECTION_TIMEOUT_MS = Number(process.env.MAIL_CONNECTION_TIMEOUT_MS || 10 * 1000);
+const MAIL_SOCKET_TIMEOUT_MS = Number(process.env.MAIL_SOCKET_TIMEOUT_MS || 15 * 1000);
 const WEATHER_HISTORY_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 const WEATHER_HISTORY_MAX_DAYS = 5;
 const URGENT_ALERT_INTERVAL_MS = 30 * 60 * 1000;
@@ -184,7 +186,7 @@ app.post('/contact', async (req, res) => {
 
   if (!sent) {
     return res.status(502).json({
-      error: 'The mail server did not accept the contact message. Check Gmail app password settings.',
+      error: 'The mail server could not send the contact message. On Render Free, SMTP ports are blocked; use a paid Render instance or an HTTP email provider.',
     });
   }
 
@@ -365,7 +367,7 @@ app.post('/mail-alerts/test', async (req, res) => {
 
     if (!sent) {
       return res.status(502).json({
-        error: 'The mail server did not accept the test message. Check Gmail app password settings.',
+        error: 'The mail server could not send the test message. On Render Free, SMTP ports are blocked; use a paid Render instance or an HTTP email provider.',
       });
     }
 
@@ -1096,6 +1098,9 @@ function getMailTransporter() {
         user: getMailUser(),
         pass: getMailPassword(),
       },
+      connectionTimeout: MAIL_CONNECTION_TIMEOUT_MS,
+      greetingTimeout: MAIL_CONNECTION_TIMEOUT_MS,
+      socketTimeout: MAIL_SOCKET_TIMEOUT_MS,
     });
   }
 
