@@ -142,13 +142,13 @@ Use a Google **App Password** for `MAIL_PASS`, not your normal Gmail password. I
 The server has a scheduler, but Render free services can sleep. For more reliable 12:00 AM delivery, create an external cron/uptime job that calls:
 
 ```text
-https://susnata-weather-app-oeqt.onrender.com/mail-alerts/cron
+https://susnata-weather-app.onrender.com/mail-alerts/cron
 ```
 
 If `MAIL_CRON_SECRET` is set, call:
 
 ```text
-https://susnata-weather-app-oeqt.onrender.com/mail-alerts/cron?secret=YOUR_SECRET
+https://susnata-weather-app.onrender.com/mail-alerts/cron?secret=YOUR_SECRET
 ```
 
 Ping it every 10-15 minutes. The backend only sends due reports/alerts, so repeated pings should not spam users.
