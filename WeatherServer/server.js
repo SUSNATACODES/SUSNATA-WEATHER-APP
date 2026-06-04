@@ -1058,19 +1058,27 @@ function isMailConfigured() {
 }
 
 function getMailUser() {
-  return process.env.MAIL_USER || process.env.GMAIL_USER || process.env.SMTP_USER;
+  return normalizeEnvText(process.env.MAIL_USER || process.env.GMAIL_USER || process.env.SMTP_USER);
 }
 
 function getMailPassword() {
-  return process.env.MAIL_PASS || process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+  return normalizeMailPassword(process.env.MAIL_PASS || process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS);
 }
 
 function getMailFrom() {
-  return process.env.MAIL_FROM || `Oxygen Weather <${getMailUser()}>`;
+  return normalizeEnvText(process.env.MAIL_FROM) || `Oxygen Weather <${getMailUser()}>`;
 }
 
 function getContactRecipient() {
-  return process.env.CONTACT_EMAIL || process.env.CONTACT_TO || getMailUser();
+  return normalizeEnvText(process.env.CONTACT_EMAIL || process.env.CONTACT_TO) || getMailUser();
+}
+
+function normalizeEnvText(value) {
+  return String(value || '').trim();
+}
+
+function normalizeMailPassword(value) {
+  return normalizeEnvText(value).replace(/\s+/g, '');
 }
 
 function getMailTransporter() {
