@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org';
 const API_KEY = process.env.API_KEY || process.env.OPENWEATHER_API_KEY;
 const APP_VERSION = process.env.RENDER_GIT_COMMIT || 'local';
-const UI_BUILD = 'mail-diagnostics-20260603';
+const UI_BUILD = 'mail-design-20260604';
 const BREVO_SEND_EMAIL_URL = 'https://api.brevo.com/v3/smtp/email';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SUBSCRIPTIONS_DIR = path.join(__dirname, 'data');
@@ -1591,10 +1591,58 @@ function getAlertSignature(alerts) {
     .slice(0, 20);
 }
 
+function emailHero({ eyebrow, title, description }) {
+  return `
+    <div class="hero-panel">
+      <div class="eyebrow">${eyebrow}</div>
+      <h1>${title}</h1>
+      <p>${description}</p>
+    </div>
+  `;
+}
+
+function emailSection(title, body, modifier = '') {
+  return `
+    <div class="section ${modifier}">
+      <h2>${title}</h2>
+      ${body}
+    </div>
+  `;
+}
+
+function emailMetricCards(metrics) {
+  return `
+    <div class="metric-grid">
+      ${metrics
+        .map((metric) => `
+          <div class="metric-card">
+            <div class="metric-label">${metric.label}</div>
+            <div class="metric-value">${metric.value}</div>
+            ${metric.note ? `<div class="metric-note">${metric.note}</div>` : ''}
+          </div>
+        `)
+        .join('')}
+    </div>
+  `;
+}
+
+function emailButton(label, url) {
+  return `
+    <p class="button-row">
+      <a class="button" href="${escapeHtml(url)}">${escapeHtml(label)}</a>
+    </p>
+  `;
+}
+
 function buildContactEmail(contact, req) {
   const sourcePage = contact.page || PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`;
   const currentWeather = contact.currentWeather || 'Not provided';
   const sentAt = new Date().toISOString();
+  const senderName = escapeHtml(contact.name);
+  const senderEmail = escapeHtml(contact.email);
+  const safeSourcePage = escapeHtml(sourcePage);
+  const safeCurrentWeather = escapeHtml(currentWeather);
+  const safeSentAt = escapeHtml(sentAt);
   const text = [
     'New Oxygen Weather contact message.',
     `Name: ${contact.name}`,
@@ -1612,13 +1660,23 @@ function buildContactEmail(contact, req) {
       title: 'New contact message',
       preheader: `${escapeHtml(contact.name)} sent a message through Oxygen Weather`,
       body: `
-        <p><strong>Name:</strong> ${escapeHtml(contact.name)}</p>
-        <p><strong>Email:</strong> <a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a></p>
-        <p><strong>Current weather:</strong> ${escapeHtml(currentWeather)}</p>
-        <p><strong>Page:</strong> <a href="${escapeHtml(sourcePage)}">${escapeHtml(sourcePage)}</a></p>
-        <h2>Message</h2>
-        <p>${escapeHtml(contact.message).replace(/\n/g, '<br>')}</p>
-        <p class="note">Sent from Oxygen Weather contact form at ${escapeHtml(sentAt)}.</p>
+        ${emailHero({
+          eyebrow: 'Contact inbox',
+          title: `New message from ${senderName}`,
+          description: 'A visitor sent a message from the Oxygen Weather contact form.',
+        })}
+        ${emailMetricCards([
+          { label: 'Name', value: senderName },
+          { label: 'Reply email', value: `<a href="mailto:${senderEmail}">${senderEmail}</a>` },
+          { label: 'Weather context', value: safeCurrentWeather },
+        ])}
+        ${emailSection('Message', `
+          <div class="message-box">${escapeHtml(contact.message).replace(/\n/g, '<br>')}</div>
+        `)}
+        ${emailSection('Source details', `
+          <p><strong>Page:</strong> <a href="${safeSourcePage}">${safeSourcePage}</a></p>
+          <p><strong>Sent:</strong> ${safeSentAt}</p>
+        `, 'soft-section')}
       `,
     }),
   };
@@ -1627,6 +1685,7 @@ function buildContactEmail(contact, req) {
 function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {
   const location = escapeHtml(subscription.location.label);
   const current = payload.current;
+  const reportTime = escapeHtml(subscription.options?.dailyReportTime || '00:00');
   const text = [
     `Oxygen Weather mail alerts are enabled for ${subscription.location.label}.`,
     `Current weather: ${current.condition.description}, ${current.temperature} C.`,
@@ -1641,16 +1700,28 @@ function buildConfirmationEmail(subscription, payload, unsubscribeUrl) {
       title: 'Mail alerts enabled',
       preheader: `Oxygen Weather alerts for ${location}`,
       body: `
-        <p>Mail alerts are now enabled for <strong>${location}</strong>.</p>
-        <p>Current weather: <strong>${escapeHtml(current.condition.description)}</strong>, ${escapeHtml(current.temperature)} C.</p>
-        <ul>
-          <li>Important weather alerts only when notable conditions are detected.</li>
-          <li>One full-day history report around <strong>${escapeHtml(subscription.options?.dailyReportTime || '00:00')}</strong> local time.</li>
-          <li>After-midnight hourly outlook and upcoming forecast included.</li>
-          <li>No repeated spam messages.</li>
-        </ul>
-        <p class="note">For dangerous conditions, always follow official local weather and emergency guidance.</p>
-        <p><a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe from these alerts</a></p>
+        ${emailHero({
+          eyebrow: 'Subscription active',
+          title: `Weather protection for ${location}`,
+          description: 'Your Oxygen Weather reminder is connected. You will only receive useful weather mail, not repeated noise.',
+        })}
+        ${emailMetricCards([
+          { label: 'Current condition', value: escapeHtml(current.condition.description) },
+          { label: 'Temperature', value: `${escapeHtml(current.temperature)} C` },
+          { label: 'Daily report', value: reportTime, note: 'Local time' },
+        ])}
+        ${emailSection('What you will receive', `
+          <ul class="clean-list">
+            <li><strong>Important alerts</strong> when notable or risky weather behavior is detected.</li>
+            <li><strong>Full-day history</strong> around ${reportTime} with the after-midnight outlook.</li>
+            <li><strong>Upcoming forecast</strong> so you can plan the next day clearly.</li>
+            <li><strong>Low-noise delivery</strong> with duplicate alert protection.</li>
+          </ul>
+        `)}
+        ${emailSection('Safety note', `
+          <p>For dangerous conditions, always follow official local weather and emergency guidance.</p>
+          ${emailButton('Manage or unsubscribe', unsubscribeUrl)}
+        `, 'soft-section')}
       `,
     }),
   };
@@ -1672,7 +1743,7 @@ function buildDailyReportEmail(
     ? historySamples
       .map((sample) => {
         return `<tr>
-          <td>${escapeHtml(sample.localTime || '--')}</td>
+          <td class="time-cell">${escapeHtml(sample.localTime || '--')}</td>
           <td>${escapeHtml(sample.condition || 'Weather')}</td>
           <td>${escapeHtml(formatOptionalNumber(sample.temperature, ' C'))}</td>
           <td>${escapeHtml(formatOptionalNumber(sample.humidity, '%'))}</td>
@@ -1681,12 +1752,12 @@ function buildDailyReportEmail(
         </tr>`;
       })
       .join('')
-    : `<tr><td colspan="6">History tracking has started. The next midnight report will include the full day samples collected by the server.</td></tr>`;
+    : `<tr><td class="empty-table" colspan="6">History tracking has started. The next midnight report will include the full day samples collected by the server.</td></tr>`;
   const hourlyRows = (payload.hourly || [])
     .slice(0, 8)
     .map((hour) => {
       return `<tr>
-        <td>${escapeHtml(hour.localHour)}:00</td>
+        <td class="time-cell">${escapeHtml(hour.localHour)}:00</td>
         <td>${escapeHtml(hour.condition.description)}</td>
         <td>${escapeHtml(formatOptionalNumber(hour.temperature, ' C'))}</td>
         <td>${escapeHtml(hour.precipitationProbability)}%</td>
@@ -1697,7 +1768,7 @@ function buildDailyReportEmail(
   const forecastRows = (payload.forecast || [])
     .map((day) => {
       return `<tr>
-        <td>${escapeHtml(day.date)}</td>
+        <td class="time-cell">${escapeHtml(day.date)}</td>
         <td>${escapeHtml(day.condition.description)}</td>
         <td>${escapeHtml(day.tempMax)} C / ${escapeHtml(day.tempMin)} C</td>
         <td>${escapeHtml(day.precipitationProbability)}%</td>
@@ -1741,29 +1812,53 @@ function buildDailyReportEmail(
       title: `${titlePrefix}: ${escapeHtml(subscription.location.label)}`,
       preheader: `Full day history and upcoming weather for ${escapeHtml(subscription.location.label)}`,
       body: `
-        <p><strong>Now:</strong> ${escapeHtml(current.condition.description)}, ${escapeHtml(current.temperature)} C, feels like ${escapeHtml(current.feelsLike)} C.</p>
-        <p><strong>Humidity:</strong> ${escapeHtml(current.humidity)}% &nbsp; <strong>Wind:</strong> ${escapeHtml(current.windSpeed)} m/s &nbsp; <strong>Pressure:</strong> ${escapeHtml(current.pressure)} hPa</p>
-        <h2>${escapeHtml(historyTitle)}</h2>
-        ${historySummary
-          ? `<p><strong>${escapeHtml(historySummary.samples)} samples:</strong> ${escapeHtml(historySummary.minTemp)} C to ${escapeHtml(historySummary.maxTemp)} C, average ${escapeHtml(historySummary.avgTemp)} C. Average humidity ${escapeHtml(historySummary.avgHumidity)}%, peak wind ${escapeHtml(historySummary.peakWind)} m/s, rain total ${escapeHtml(historySummary.rainTotal)} mm.</p>`
-          : '<p>History tracking has started. The next midnight report will include the full day samples collected by the server.</p>'
-        }
-        <table>
-          <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Humidity</th><th>Wind</th><th>Rain</th></tr></thead>
-          <tbody>${historyRows}</tbody>
-        </table>
-        <h2>After midnight outlook</h2>
-        <table>
-          <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Rain chance</th><th>Wind</th></tr></thead>
-          <tbody>${hourlyRows}</tbody>
-        </table>
-        <h2>Upcoming forecast</h2>
-        <table>
-          <thead><tr><th>Date</th><th>Condition</th><th>Temp</th><th>Rain chance</th></tr></thead>
-          <tbody>${forecastRows}</tbody>
-        </table>
-        <p class="note">You are receiving one daily report around ${escapeHtml(subscription.options?.dailyReportTime || '00:00')} local time. Important alerts are sent only when notable weather behavior is detected.</p>
-        <p><a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe from these alerts</a></p>
+        ${emailHero({
+          eyebrow: isTest ? 'Test report' : 'Daily weather intelligence',
+          title: `${titlePrefix} for ${escapeHtml(subscription.location.label)}`,
+          description: `${escapeHtml(current.condition.description)} now, ${escapeHtml(current.temperature)} C, feels like ${escapeHtml(current.feelsLike)} C.`,
+        })}
+        ${emailMetricCards([
+          { label: 'Humidity', value: `${escapeHtml(current.humidity)}%` },
+          { label: 'Wind', value: `${escapeHtml(current.windSpeed)} m/s` },
+          { label: 'Pressure', value: `${escapeHtml(current.pressure)} hPa` },
+        ])}
+        ${emailSection(escapeHtml(historyTitle), `
+          ${historySummary
+            ? `${emailMetricCards([
+              { label: 'Samples', value: escapeHtml(historySummary.samples) },
+              { label: 'Temperature range', value: `${escapeHtml(historySummary.minTemp)} C - ${escapeHtml(historySummary.maxTemp)} C`, note: `Average ${escapeHtml(historySummary.avgTemp)} C` },
+              { label: 'Rain total', value: `${escapeHtml(historySummary.rainTotal)} mm`, note: `Main: ${escapeHtml(historySummary.mainCondition)}` },
+            ])}
+            <p class="note">Average humidity ${escapeHtml(historySummary.avgHumidity)}%, peak wind ${escapeHtml(historySummary.peakWind)} m/s.</p>`
+            : '<p>History tracking has started. The next midnight report will include the full day samples collected by the server.</p>'
+          }
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Humidity</th><th>Wind</th><th>Rain</th></tr></thead>
+              <tbody>${historyRows}</tbody>
+            </table>
+          </div>
+        `)}
+        ${emailSection('After midnight outlook', `
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Time</th><th>Condition</th><th>Temp</th><th>Rain chance</th><th>Wind</th></tr></thead>
+              <tbody>${hourlyRows}</tbody>
+            </table>
+          </div>
+        `, 'soft-section')}
+        ${emailSection('Upcoming forecast', `
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Date</th><th>Condition</th><th>Temp</th><th>Rain chance</th></tr></thead>
+              <tbody>${forecastRows}</tbody>
+            </table>
+          </div>
+        `)}
+        ${emailSection('Delivery settings', `
+          <p>You are receiving one daily report around <strong>${escapeHtml(subscription.options?.dailyReportTime || '00:00')}</strong> local time. Important alerts are sent only when notable weather behavior is detected.</p>
+          ${emailButton('Manage or unsubscribe', unsubscribeUrl)}
+        `, 'soft-section')}
       `,
     }),
   };
@@ -1817,7 +1912,12 @@ function roundOrDash(value, places = 1) {
 
 function buildUrgentAlertEmail(subscription, payload, alerts, unsubscribeUrl) {
   const alertItems = alerts
-    .map((alert) => `<li><strong>${escapeHtml(alert.title)}:</strong> ${escapeHtml(alert.detail)}</li>`)
+    .map((alert) => `
+      <div class="alert-card">
+        <div class="alert-title">${escapeHtml(alert.title)}</div>
+        <div class="alert-detail">${escapeHtml(alert.detail)}</div>
+      </div>
+    `)
     .join('');
   const textAlerts = alerts.map((alert) => `${alert.title}: ${alert.detail}`).join('\n');
 
@@ -1834,11 +1934,21 @@ function buildUrgentAlertEmail(subscription, payload, alerts, unsubscribeUrl) {
       title: `Important alert: ${escapeHtml(subscription.location.label)}`,
       preheader: `Important weather behavior detected for ${escapeHtml(subscription.location.label)}`,
       body: `
-        <p>Oxygen Weather detected important weather behavior for <strong>${escapeHtml(subscription.location.label)}</strong>.</p>
-        <ul>${alertItems}</ul>
-        <p><strong>Current condition:</strong> ${escapeHtml(payload.current.condition.description)}, ${escapeHtml(payload.current.temperature)} C.</p>
-        <p class="note">Please follow official local weather and emergency guidance if conditions become dangerous.</p>
-        <p><a href="${escapeHtml(unsubscribeUrl)}">Unsubscribe from these alerts</a></p>
+        ${emailHero({
+          eyebrow: 'Important weather alert',
+          title: escapeHtml(subscription.location.label),
+          description: 'Oxygen Weather detected notable weather behavior that may need attention.',
+        })}
+        <div class="alert-stack">${alertItems}</div>
+        ${emailMetricCards([
+          { label: 'Current condition', value: escapeHtml(payload.current.condition.description) },
+          { label: 'Temperature', value: `${escapeHtml(payload.current.temperature)} C` },
+          { label: 'Feels like', value: `${escapeHtml(payload.current.feelsLike)} C` },
+        ])}
+        ${emailSection('Safety guidance', `
+          <p>Please follow official local weather and emergency guidance if conditions become dangerous.</p>
+          ${emailButton('Manage or unsubscribe', unsubscribeUrl)}
+        `, 'warning-section')}
       `,
     }),
   };
@@ -1852,25 +1962,80 @@ function baseEmailTemplate({ title, preheader, body }) {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>${title}</title>
         <style>
-          body { margin: 0; padding: 0; background: #f5f8fb; color: #17212f; font-family: Arial, sans-serif; }
-          .wrap { max-width: 680px; margin: 0 auto; padding: 28px 16px; }
-          .card { background: #ffffff; border: 1px solid #d8e0e8; border-radius: 8px; padding: 24px; }
-          h1 { margin: 0 0 16px; font-size: 26px; }
-          h2 { font-size: 18px; margin-top: 22px; }
-          p, li, td, th { font-size: 15px; line-height: 1.5; }
-          a { color: #0f766e; font-weight: 700; }
-          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-          th, td { border-bottom: 1px solid #d8e0e8; padding: 10px 6px; text-align: left; }
+          body { margin: 0; padding: 0; background: #eaf1f7; color: #142033; font-family: Arial, Helvetica, sans-serif; }
+          .wrap { max-width: 720px; margin: 0 auto; padding: 30px 14px; }
+          .shell { background: #ffffff; border: 1px solid #d9e3ee; border-radius: 18px; overflow: hidden; box-shadow: 0 18px 48px rgba(20, 32, 51, 0.12); }
+          .brand { background: #071827; color: #ffffff; padding: 24px 28px; }
+          .brand-mark { display: inline-block; width: 44px; height: 44px; border-radius: 12px; background: #34d399; color: #06131f; font-weight: 900; font-size: 19px; line-height: 44px; text-align: center; vertical-align: middle; margin-right: 12px; }
+          .brand-copy { display: inline-block; vertical-align: middle; }
+          .brand-name { font-size: 18px; font-weight: 800; letter-spacing: 0; }
+          .brand-subtitle { margin-top: 3px; color: #b8c7d9; font-size: 13px; }
+          .brand-pill { float: right; margin-top: 9px; border: 1px solid rgba(255,255,255,0.24); border-radius: 999px; color: #d9fbe8; font-size: 12px; font-weight: 700; padding: 7px 11px; }
+          .content { padding: 26px 28px 28px; }
+          .hero-panel { background: #f4faf8; border: 1px solid #cfeee2; border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+          .eyebrow { color: #047857; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 9px; }
+          h1 { margin: 0; color: #0d1b2a; font-size: 28px; line-height: 1.16; letter-spacing: 0; }
+          h2 { margin: 0 0 12px; color: #13253b; font-size: 18px; line-height: 1.3; letter-spacing: 0; }
+          p, li, td, th { font-size: 15px; line-height: 1.55; }
+          p { margin: 0 0 12px; }
+          a { color: #047857; font-weight: 800; text-decoration: none; }
+          .hero-panel p { margin: 12px 0 0; color: #4b5f74; }
+          .metric-grid { margin: 0 -5px 18px; }
+          .metric-card { display: inline-block; vertical-align: top; box-sizing: border-box; width: 31.6%; min-width: 170px; margin: 5px; padding: 15px; background: #f8fbfe; border: 1px solid #dbe7f2; border-radius: 12px; }
+          .metric-label { color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+          .metric-value { margin-top: 7px; color: #102033; font-size: 18px; line-height: 1.25; font-weight: 900; word-break: break-word; }
+          .metric-note { margin-top: 5px; color: #6b7d90; font-size: 12px; }
+          .section { border: 1px solid #dbe7f2; border-radius: 14px; padding: 18px; margin-top: 16px; background: #ffffff; }
+          .soft-section { background: #f8fbfe; }
+          .warning-section { background: #fff8ed; border-color: #f4d6a7; }
+          .message-box { background: #0f172a; color: #edf7ff; border-radius: 12px; padding: 18px; line-height: 1.65; white-space: normal; }
+          .clean-list { padding-left: 18px; margin: 0; }
+          .clean-list li { margin: 0 0 10px; }
+          .alert-stack { margin: 0 0 18px; }
+          .alert-card { background: #fff7ed; border: 1px solid #fed7aa; border-left: 5px solid #f97316; border-radius: 12px; padding: 15px 16px; margin: 0 0 12px; }
+          .alert-title { color: #9a3412; font-size: 16px; font-weight: 900; }
+          .alert-detail { margin-top: 5px; color: #3f2a17; font-size: 14px; line-height: 1.55; }
+          .table-wrap { width: 100%; overflow-x: auto; }
+          table.data-table { width: 100%; min-width: 540px; border-collapse: separate; border-spacing: 0; border: 1px solid #dbe7f2; border-radius: 12px; overflow: hidden; }
+          .data-table th { background: #eef7f3; color: #315166; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; padding: 11px 10px; text-align: left; }
+          .data-table td { border-top: 1px solid #e3edf6; color: #25364a; padding: 11px 10px; text-align: left; }
+          .time-cell { color: #0f766e; font-weight: 900; white-space: nowrap; }
+          .empty-table { color: #64748b; font-style: italic; text-align: center; }
+          .button-row { margin: 18px 0 0; }
+          .button { display: inline-block; background: #0f766e; color: #ffffff !important; border-radius: 999px; padding: 12px 18px; font-size: 14px; font-weight: 900; }
           .note { color: #667085; font-size: 13px; }
+          .footer { padding: 18px 28px 24px; background: #f7fafc; border-top: 1px solid #e2edf5; color: #64748b; font-size: 12px; line-height: 1.55; }
+          .footer a { color: #0f766e; }
           .preheader { display: none; visibility: hidden; opacity: 0; height: 0; width: 0; overflow: hidden; }
+          @media (max-width: 560px) {
+            .wrap { padding: 12px; }
+            .brand, .content, .footer { padding-left: 18px; padding-right: 18px; }
+            .brand-pill { float: none; display: inline-block; margin-top: 14px; }
+            h1 { font-size: 23px; }
+            .metric-card { width: 100%; min-width: 0; }
+          }
         </style>
       </head>
       <body>
         <span class="preheader">${preheader}</span>
         <div class="wrap">
-          <div class="card">
-            <h1>${title}</h1>
-            ${body}
+          <div class="shell">
+            <div class="brand">
+              <span class="brand-mark">OW</span>
+              <span class="brand-copy">
+                <span class="brand-name">Oxygen Weather</span>
+                <span class="brand-subtitle">Weather alerts by Susnata Codes</span>
+              </span>
+              <span class="brand-pill">Live weather mail</span>
+            </div>
+            <div class="content">
+              ${body}
+            </div>
+            <div class="footer">
+              Sent by <strong>Oxygen Weather</strong>. Built by <a href="https://susnatacodes.blogspot.com">Susnata Codes</a>.
+              <br>
+              Open the app: <a href="${escapeHtml(PUBLIC_APP_URL)}">${escapeHtml(PUBLIC_APP_URL)}</a>
+            </div>
           </div>
         </div>
       </body>
