@@ -1,9 +1,13 @@
 const DEFAULT_CITY = 'Jalpaiguri';
 const RECENT_SEARCHES_KEY = 'oxygen-weather-recent-searches';
 const FAVORITE_PLACES_KEY = 'oxygen-weather-favorite-places';
+const LAST_WEATHER_KEY = 'oxygen-weather-last-weather';
 const LOGIN_EMAIL_KEY = 'oxygen-weather-login-email';
 const USER_PROFILE_KEY = 'oxygen-weather-user-profile';
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
+const WEATHER_CACHE_MAX_MS = 12 * 60 * 60 * 1000;
+const PRIMARY_WEATHER_TIMEOUT_MS = 7000;
+const CONTACT_SEND_TIMEOUT_MS = 7000;
 const MAX_CANVAS_DPR = 1.5;
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
@@ -12,6 +16,9 @@ const GOOGLE_OAUTH_STATE_KEY = 'oxygen-weather-google-oauth-state';
 const GOOGLE_OAUTH_NONCE_KEY = 'oxygen-weather-google-oauth-nonce';
 const GOOGLE_OAUTH_CLIENT_KEY = 'oxygen-weather-google-oauth-client';
 const API_BASE_URL = String(window.OXYGEN_WEATHER_API_BASE || '').replace(/\/$/, '');
+const CONTACT_FALLBACK_EMAIL = String(window.OXYGEN_CONTACT_EMAIL || 'sbmrbiswas@gmail.com').trim();
+const OPEN_METEO_GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const STATIC_GOOGLE_CLIENT_ID = String(window.OXYGEN_GOOGLE_CLIENT_ID || '').trim();
 const cachedUserProfile = loadUserProfile();
 
@@ -486,6 +493,20 @@ function debounce(callback, delay) {
 
 function apiUrl(path) {
     return `${API_BASE_URL}${path}`;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+    } finally {
+        window.clearTimeout(timer);
+    }
 }
 
 function goHome() {
@@ -1061,7 +1082,7 @@ async function sendContactMessage() {
     showContactStatus('Sending your message.', 'info');
 
     try {
-        const response = await fetch(apiUrl('/contact'), {
+        const response = await fetchWithTimeout(apiUrl('/contact'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1071,7 +1092,7 @@ async function sendContactMessage() {
                 page: window.location.href,
                 currentWeather: state.weather?.location ? formatLocation(state.weather.location) : '',
             }),
-        });
+        }, CONTACT_SEND_TIMEOUT_MS);
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
@@ -1081,10 +1102,55 @@ async function sendContactMessage() {
         dom.contactMessage.value = '';
         showContactStatus(data.message || 'Message sent. Susnata Codes will receive it by email.', 'success');
     } catch (error) {
-        showContactStatus(error.message || 'Message could not be sent right now.', 'error');
+        const fallback = buildContactFallbackUrls({ name, email, message });
+        const opened = openContactFallbackDraft(fallback.gmailUrl);
+        showContactFallbackStatus(fallback, opened);
     } finally {
         setContactBusy(false);
     }
+}
+
+function buildContactFallbackUrls({ name, email, message }) {
+    const subject = `Oxygen Weather contact from ${name}`;
+    const body = [
+        'New Oxygen Weather contact message.',
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Current weather: ${state.weather?.location ? formatLocation(state.weather.location) : 'Not loaded'}`,
+        `Page: ${window.location.href}`,
+        '',
+        message,
+    ].join('\n');
+    const encodedTo = encodeURIComponent(CONTACT_FALLBACK_EMAIL);
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+
+    return {
+        gmailUrl: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodedTo}&su=${encodedSubject}&body=${encodedBody}`,
+        mailtoUrl: `mailto:${encodedTo}?subject=${encodedSubject}&body=${encodedBody}`,
+    };
+}
+
+function openContactFallbackDraft(gmailUrl) {
+    try {
+        const opened = window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+        return Boolean(opened);
+    } catch {
+        return false;
+    }
+}
+
+function showContactFallbackStatus(fallback, opened) {
+    dom.contactStatus.innerHTML = `
+        Render mail is waking up, so backup contact is ready.
+        ${opened ? 'A Gmail draft opened in a new tab.' : 'Open it manually:'}
+        <a href="${escapeHtml(fallback.gmailUrl)}" target="_blank" rel="noopener noreferrer">Gmail draft</a>
+        or
+        <a href="${escapeHtml(fallback.mailtoUrl)}">mail app</a>.
+    `;
+    dom.contactStatus.classList.add('is-success');
+    dom.contactStatus.classList.remove('is-error');
+    dom.contactStatus.hidden = false;
 }
 
 function setContactBusy(isBusy) {
@@ -1365,7 +1431,7 @@ async function loadWeather(params, options = {}) {
     hideStatus();
 
     try {
-        const response = await fetch(apiUrl(`/weather?${query.toString()}`));
+        const response = await fetchWithTimeout(apiUrl(`/weather?${query.toString()}`), {}, PRIMARY_WEATHER_TIMEOUT_MS);
         const data = await response.json().catch(() => ({
             error: 'The server returned an unexpected response.',
         }));
@@ -1374,28 +1440,361 @@ async function loadWeather(params, options = {}) {
             throw new Error(data.error || 'Weather data could not be loaded.');
         }
 
-        state.weather = data;
-        state.lastRequest = {
-            params,
-            label: options.label || formatLocation(data.location),
-        };
-
-        renderWeather(data);
-
-        if (options.saveRecent) {
-            saveRecentSearch(formatLocation(data.location));
-        }
-
-        if (options.successMessage) {
-            showTemporaryStatus(options.successMessage, 'success');
-        }
+        completeWeatherLoad(data, params, options);
 
         return true;
-    } catch (error) {
-        showStatus(error.message || 'Weather data could not be loaded.');
-        return false;
+    } catch (primaryError) {
+        try {
+            const backupData = await loadBackupWeather(params, options);
+            completeWeatherLoad(backupData, params, options);
+            showTemporaryStatus('Render is waking up. Backup weather is active from Open-Meteo.', 'success');
+            return true;
+        } catch (backupError) {
+            const cached = loadCachedWeatherSnapshot();
+            if (cached) {
+                completeWeatherLoad(
+                    {
+                        ...cached,
+                        meta: {
+                            ...(cached.meta || {}),
+                            source: `${cached.meta?.source || 'Weather'} cached backup`,
+                            fromCache: true,
+                        },
+                    },
+                    params,
+                    { ...options, saveRecent: false }
+                );
+                showTemporaryStatus('Live servers are busy, so the last saved weather report is showing.', 'success');
+                return true;
+            }
+
+            showStatus(
+                primaryError.message ||
+                backupError.message ||
+                'Weather data could not be loaded.'
+            );
+            return false;
+        }
     } finally {
         setBusy(false);
+    }
+}
+
+function completeWeatherLoad(data, params, options = {}) {
+    state.weather = data;
+    state.lastRequest = {
+        params,
+        label: options.label || formatLocation(data.location),
+    };
+
+    renderWeather(data);
+    saveWeatherSnapshot(data);
+
+    if (options.saveRecent) {
+        saveRecentSearch(formatLocation(data.location));
+    }
+
+    if (options.successMessage) {
+        showTemporaryStatus(options.successMessage, 'success');
+    }
+}
+
+async function loadBackupWeather(params, options = {}) {
+    const target = await resolveBackupWeatherTarget(params, options);
+    const url = new URL(OPEN_METEO_FORECAST_URL);
+    url.search = new URLSearchParams({
+        latitude: String(target.lat),
+        longitude: String(target.lon),
+        current: [
+            'temperature_2m',
+            'apparent_temperature',
+            'relative_humidity_2m',
+            'pressure_msl',
+            'wind_speed_10m',
+            'wind_direction_10m',
+            'wind_gusts_10m',
+            'weather_code',
+            'cloud_cover',
+            'visibility',
+            'precipitation',
+            'rain',
+            'snowfall',
+            'is_day',
+        ].join(','),
+        hourly: [
+            'temperature_2m',
+            'apparent_temperature',
+            'relative_humidity_2m',
+            'precipitation_probability',
+            'precipitation',
+            'rain',
+            'snowfall',
+            'weather_code',
+            'wind_speed_10m',
+        ].join(','),
+        daily: [
+            'weather_code',
+            'temperature_2m_max',
+            'temperature_2m_min',
+            'precipitation_probability_max',
+            'rain_sum',
+            'snowfall_sum',
+            'wind_speed_10m_max',
+            'sunrise',
+            'sunset',
+        ].join(','),
+        timezone: 'auto',
+        timeformat: 'unixtime',
+        forecast_days: '5',
+        temperature_unit: 'celsius',
+        wind_speed_unit: 'ms',
+        precipitation_unit: 'mm',
+    }).toString();
+
+    const response = await fetchWithTimeout(url.toString(), {}, 9000);
+    if (!response.ok) {
+        throw new Error('Backup weather provider is not available.');
+    }
+
+    const data = await response.json();
+    return buildOpenMeteoPayload(data, target);
+}
+
+async function resolveBackupWeatherTarget(params, options = {}) {
+    const lat = Number(params.lat);
+    const lon = Number(params.lon);
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        return {
+            lat,
+            lon,
+            name: options.label || 'Current location',
+            state: '',
+            country: '',
+        };
+    }
+
+    const city = String(params.city || options.label || DEFAULT_CITY).trim();
+    const url = new URL(OPEN_METEO_GEOCODE_URL);
+    url.search = new URLSearchParams({
+        name: city,
+        count: '1',
+        language: 'en',
+        format: 'json',
+    }).toString();
+
+    const response = await fetchWithTimeout(url.toString(), {}, 7000);
+    if (!response.ok) {
+        throw new Error('Backup city search is not available.');
+    }
+
+    const data = await response.json();
+    const [match] = Array.isArray(data.results) ? data.results : [];
+    if (!match) {
+        throw new Error('Backup weather could not find this city.');
+    }
+
+    return {
+        lat: Number(match.latitude),
+        lon: Number(match.longitude),
+        name: match.name || city,
+        state: match.admin1 || '',
+        country: match.country_code || match.country || '',
+    };
+}
+
+function buildOpenMeteoPayload(data, target) {
+    const current = data.current || {};
+    const daily = data.daily || {};
+    const timezoneOffset = Number(data.utc_offset_seconds || 0);
+    const condition = getOpenMeteoCondition(current.weather_code, current.is_day);
+    const observedAt = Number(current.time || Date.now() / 1000);
+
+    return {
+        location: {
+            name: target.name,
+            state: target.state,
+            country: target.country,
+            coordinates: {
+                lat: Number(data.latitude ?? target.lat),
+                lon: Number(data.longitude ?? target.lon),
+            },
+            timezoneOffset,
+        },
+        current: {
+            condition,
+            temperature: fallbackRound(current.temperature_2m),
+            feelsLike: fallbackRound(current.apparent_temperature ?? current.temperature_2m),
+            tempMin: fallbackRound(daily.temperature_2m_min?.[0] ?? current.temperature_2m),
+            tempMax: fallbackRound(daily.temperature_2m_max?.[0] ?? current.temperature_2m),
+            humidity: numberOrNull(current.relative_humidity_2m),
+            pressure: fallbackRound(current.pressure_msl, 0),
+            windSpeed: fallbackRound(current.wind_speed_10m),
+            windGust: fallbackRound(current.wind_gusts_10m),
+            windDirection: numberOrNull(current.wind_direction_10m),
+            clouds: numberOrNull(current.cloud_cover),
+            visibility: numberOrNull(current.visibility),
+            sunrise: numberOrNull(daily.sunrise?.[0]),
+            sunset: numberOrNull(daily.sunset?.[0]),
+            observedAt,
+            rainVolume: fallbackRound(current.rain ?? current.precipitation ?? 0),
+            snowVolume: fallbackRound(current.snowfall ?? 0),
+        },
+        forecast: buildOpenMeteoDailyForecast(daily, timezoneOffset),
+        hourly: buildOpenMeteoHourlyForecast(data.hourly || {}, timezoneOffset),
+        airQuality: null,
+        meta: {
+            source: 'Open-Meteo backup',
+            fetchedAt: new Date().toISOString(),
+            fromCache: false,
+        },
+    };
+}
+
+function buildOpenMeteoHourlyForecast(hourly, timezoneOffset) {
+    const times = Array.isArray(hourly.time) ? hourly.time : [];
+    const nowSeconds = Date.now() / 1000;
+
+    return times
+        .map((time, index) => ({
+            timestamp: Number(time),
+            index,
+        }))
+        .filter((slot) => Number.isFinite(slot.timestamp) && slot.timestamp >= nowSeconds - 30 * 60)
+        .slice(0, 8)
+        .map(({ timestamp, index }) => {
+            const condition = getOpenMeteoCondition(hourly.weather_code?.[index], true);
+            return {
+                timestamp,
+                localHour: getFallbackLocalHour(timestamp, timezoneOffset),
+                date: getFallbackDateKey(timestamp, timezoneOffset),
+                condition,
+                temperature: fallbackRound(hourly.temperature_2m?.[index]),
+                feelsLike: fallbackRound(hourly.apparent_temperature?.[index] ?? hourly.temperature_2m?.[index]),
+                humidity: numberOrNull(hourly.relative_humidity_2m?.[index]),
+                windSpeed: fallbackRound(hourly.wind_speed_10m?.[index]),
+                precipitationProbability: Math.round(Number(hourly.precipitation_probability?.[index] || 0)),
+                rainVolume: fallbackRound(hourly.rain?.[index] ?? hourly.precipitation?.[index] ?? 0),
+                snowVolume: fallbackRound(hourly.snowfall?.[index] ?? 0),
+            };
+        });
+}
+
+function buildOpenMeteoDailyForecast(daily, timezoneOffset) {
+    const times = Array.isArray(daily.time) ? daily.time : [];
+
+    return times.slice(0, 5).map((time, index) => {
+        const timestamp = Number(time);
+        const condition = getOpenMeteoCondition(daily.weather_code?.[index], true);
+        return {
+            date: Number.isFinite(timestamp)
+                ? getFallbackDateKey(timestamp, timezoneOffset)
+                : String(time || '').slice(0, 10),
+            condition,
+            tempMin: fallbackRound(daily.temperature_2m_min?.[index]),
+            tempMax: fallbackRound(daily.temperature_2m_max?.[index]),
+            humidity: null,
+            windSpeed: fallbackRound(daily.wind_speed_10m_max?.[index]),
+            precipitationProbability: Math.round(Number(daily.precipitation_probability_max?.[index] || 0)),
+            rainVolume: fallbackRound(daily.rain_sum?.[index] ?? 0),
+            snowVolume: fallbackRound(daily.snowfall_sum?.[index] ?? 0),
+        };
+    });
+}
+
+function getOpenMeteoCondition(codeValue, isDay = true) {
+    const code = Number(codeValue);
+    const daySuffix = Number(isDay) === 0 ? 'n' : 'd';
+    const map = {
+        0: ['Clear', 'Clear sky', `01${daySuffix}`, 800],
+        1: ['Clouds', 'Mainly clear', `02${daySuffix}`, 801],
+        2: ['Clouds', 'Partly cloudy', `03${daySuffix}`, 802],
+        3: ['Clouds', 'Overcast', `04${daySuffix}`, 804],
+        45: ['Mist', 'Fog', '50d', 741],
+        48: ['Mist', 'Depositing rime fog', '50d', 741],
+        51: ['Drizzle', 'Light drizzle', '09d', 300],
+        53: ['Drizzle', 'Moderate drizzle', '09d', 301],
+        55: ['Drizzle', 'Dense drizzle', '09d', 302],
+        56: ['Drizzle', 'Freezing drizzle', '13d', 511],
+        57: ['Drizzle', 'Dense freezing drizzle', '13d', 511],
+        61: ['Rain', 'Slight rain', '10d', 500],
+        63: ['Rain', 'Moderate rain', '10d', 501],
+        65: ['Rain', 'Heavy rain', '10d', 502],
+        66: ['Rain', 'Freezing rain', '13d', 511],
+        67: ['Rain', 'Heavy freezing rain', '13d', 511],
+        71: ['Snow', 'Slight snow', '13d', 600],
+        73: ['Snow', 'Moderate snow', '13d', 601],
+        75: ['Snow', 'Heavy snow', '13d', 602],
+        77: ['Snow', 'Snow grains', '13d', 611],
+        80: ['Rain', 'Slight rain showers', '09d', 520],
+        81: ['Rain', 'Moderate rain showers', '09d', 521],
+        82: ['Rain', 'Violent rain showers', '09d', 522],
+        85: ['Snow', 'Slight snow showers', '13d', 620],
+        86: ['Snow', 'Heavy snow showers', '13d', 622],
+        95: ['Thunderstorm', 'Thunderstorm', '11d', 200],
+        96: ['Thunderstorm', 'Thunderstorm with hail', '11d', 201],
+        99: ['Thunderstorm', 'Heavy thunderstorm with hail', '11d', 202],
+    };
+    const [main, description, icon, id] = map[code] || ['Weather', 'Current conditions', `02${daySuffix}`, 801];
+
+    return {
+        id,
+        main,
+        description,
+        icon,
+    };
+}
+
+function getFallbackDateKey(timestampSeconds, timezoneOffset) {
+    return new Date((timestampSeconds + timezoneOffset) * 1000)
+        .toISOString()
+        .slice(0, 10);
+}
+
+function getFallbackLocalHour(timestampSeconds, timezoneOffset) {
+    return new Date((timestampSeconds + timezoneOffset) * 1000).getUTCHours();
+}
+
+function fallbackRound(value, places = 1) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    const factor = 10 ** places;
+    return Math.round(number * factor) / factor;
+}
+
+function numberOrNull(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+}
+
+function saveWeatherSnapshot(data) {
+    try {
+        localStorage.setItem(
+            LAST_WEATHER_KEY,
+            JSON.stringify({
+                ...data,
+                cachedAt: Date.now(),
+            })
+        );
+    } catch {
+        // Best-effort browser backup only.
+    }
+}
+
+function loadCachedWeatherSnapshot() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(LAST_WEATHER_KEY) || 'null');
+        if (!cached?.location || !cached?.current || !cached.cachedAt) {
+            return null;
+        }
+
+        if (Date.now() - Number(cached.cachedAt) > WEATHER_CACHE_MAX_MS) {
+            return null;
+        }
+
+        return cached;
+    } catch {
+        return null;
     }
 }
 

@@ -5,6 +5,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const API_BASE_URL = 'https://susnata-weather-app.onrender.com';
 const PUBLIC_APP_URL = 'https://oxygen-weather.blogspot.com';
 const GOOGLE_CLIENT_ID = '567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com';
+const CONTACT_EMAIL = 'sbmrbiswas@gmail.com';
 const OUTPUT_FILE = path.join(ROOT_DIR, 'blogger', 'oxygen-weather-blogger-theme.xml');
 
 const html = readText('public/index.html');
@@ -123,6 +124,7 @@ function buildBloggerBootScript(markup, appScript) {
     window.OXYGEN_WEATHER_API_BASE = ${safeJsString(API_BASE_URL)};
     window.OXYGEN_WEATHER_PUBLIC_URL = ${safeJsString(PUBLIC_APP_URL)};
     window.OXYGEN_GOOGLE_CLIENT_ID = ${safeJsString(GOOGLE_CLIENT_ID)};
+    window.OXYGEN_CONTACT_EMAIL = ${safeJsString(CONTACT_EMAIL)};
     var oxygenRoot = document.getElementById('oxygenWeatherBloggerRoot');
     if (oxygenRoot) {
       oxygenRoot.innerHTML = oxygenMarkup;

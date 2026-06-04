@@ -125,6 +125,23 @@ https://susnata-weather-app.onrender.com/health
 
 Set the interval to 5 minutes. This is still a workaround, not the same guarantee as a paid always-on server.
 
+### Blogger Backup Mode
+
+The Blogger/static frontend is not fully dependent on Render:
+
+- Weather loads from Render/OpenWeather first.
+- If Render is asleep, slow, or unavailable, the browser falls back to Open-Meteo directly with no API key.
+- If both live sources fail, the browser can show the last successful weather report saved in local storage.
+- Contact messages send through Render/Brevo first.
+- If Render mail is asleep or unreachable, the contact form opens a prefilled Gmail/mail draft to the configured contact email.
+
+Render is still required for secure server features:
+
+- Brevo API secret delivery
+- Saved mail subscriptions
+- Emergency alert scheduling
+- 12:00 AM daily report jobs
+
 ### Google Login Setup
 
 Google login uses the public OAuth Client ID already embedded in the Blogger/static app. Render can also expose the same value from `/auth/config` with `GOOGLE_CLIENT_ID`.
