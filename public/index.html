@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=oxygen-pro-polish-20260603">
+    <link rel="stylesheet" href="style.css?v=oxygen-footer-polish-20260604">
     <script>
         window.OXYGEN_GOOGLE_CLIENT_ID = window.OXYGEN_GOOGLE_CLIENT_ID || '567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com';
         window.OXYGEN_CONTACT_EMAIL = window.OXYGEN_CONTACT_EMAIL || 'sbmrbiswas@gmail.com';
@@ -407,16 +407,67 @@
             </section>
         </main>
 
-        <footer class="site-footer">
-            <div class="footer-copy">
-                <span>&copy; 2026 Susnata Biswas. All rights reserved.</span>
-                <span>Data powered by OpenWeather.</span>
+        <footer class="site-footer" aria-labelledby="footerTitle">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <span class="footer-mark" aria-hidden="true">
+                        <i data-lucide="cloud-sun"></i>
+                    </span>
+                    <div>
+                        <p class="eyebrow">Oxygen Weather</p>
+                        <h2 id="footerTitle">Weather intelligence by Susnata Codes</h2>
+                        <p>Live weather, backup detection, Gmail reminders, emergency alerts, and daily reports in one polished weather dashboard.</p>
+                    </div>
+                </div>
+
+                <nav class="footer-nav" aria-label="Oxygen Weather quick links">
+                    <a href="#weatherForm">
+                        <i data-lucide="search"></i>
+                        <span>Search</span>
+                    </a>
+                    <button type="button" data-menu-action="location">
+                        <i data-lucide="navigation"></i>
+                        <span>Use Location</span>
+                    </button>
+                    <a href="#mailAlertsPanel">
+                        <i data-lucide="mail-check"></i>
+                        <span>Mail Alerts</span>
+                    </a>
+                    <a href="#contactSection">
+                        <i data-lucide="messages-square"></i>
+                        <span>Contact</span>
+                    </a>
+                </nav>
             </div>
-            <a class="susnata-codes-link" href="https://github.com/SUSNATACODES" target="_blank" rel="noopener noreferrer">
-                <i data-lucide="code-2" aria-hidden="true"></i>
-                <span>SUSNATA CODES</span>
-                <i data-lucide="external-link" aria-hidden="true"></i>
-            </a>
+
+            <div class="footer-signal-row" aria-label="Oxygen Weather system status">
+                <span><i data-lucide="database"></i>OpenWeather live data</span>
+                <span><i data-lucide="cloud-cog"></i>Open-Meteo backup</span>
+                <span><i data-lucide="shield-check"></i>Important alerts only</span>
+                <span><i data-lucide="radio"></i>Render plus Blogger ready</span>
+            </div>
+
+            <div class="footer-bottom">
+                <div class="footer-copy">
+                    <span>&copy; 2026 Susnata Biswas. All rights reserved.</span>
+                    <span>Built for Oxygen Weather on Blogger.</span>
+                </div>
+                <div class="footer-actions">
+                    <a class="footer-link-button" href="https://oxygen-weather.blogspot.com/" target="_blank" rel="noopener noreferrer">
+                        <i data-lucide="globe-2" aria-hidden="true"></i>
+                        <span>Oxygen Blog</span>
+                    </a>
+                    <a class="footer-link-button" href="https://susnatacodes.blogspot.com" target="_blank" rel="noopener noreferrer">
+                        <i data-lucide="newspaper" aria-hidden="true"></i>
+                        <span>Susnata Blog</span>
+                    </a>
+                    <a class="susnata-codes-link" href="https://github.com/SUSNATACODES" target="_blank" rel="noopener noreferrer">
+                        <i data-lucide="code-2" aria-hidden="true"></i>
+                        <span>SUSNATA CODES</span>
+                        <i data-lucide="external-link" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
         </footer>
     </div>
 
