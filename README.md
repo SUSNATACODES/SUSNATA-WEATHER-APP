@@ -91,6 +91,9 @@ BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=your_contact_destination@gmail.com
 MAIL_CRON_SECRET=optional_private_scheduler_secret
 GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
+KEEP_ALIVE_ENABLED=true
+KEEP_ALIVE_URL=https://susnata-weather-app.onrender.com/health
+KEEP_ALIVE_INTERVAL_MS=300000
 ```
 
 Render will run:
@@ -99,6 +102,28 @@ Render will run:
 npm install
 npm start
 ```
+
+### Render Sleep / Keep-Alive
+
+Blogger does not sleep, but Render Free web services can spin down when they are idle. A paid Render instance is the only guaranteed always-awake Render option.
+
+This backend includes a free keep-alive loop:
+
+```env
+KEEP_ALIVE_ENABLED=true
+KEEP_ALIVE_URL=https://susnata-weather-app.onrender.com/health
+KEEP_ALIVE_INTERVAL_MS=300000
+```
+
+It pings `/health` about every 5 minutes while the service is running. `/health` shows `keepAliveEnabled`, `lastKeepAliveAt`, and `lastKeepAliveStatus`.
+
+For the strongest free workaround, also create an external uptime monitor such as UptimeRobot or cron-job.org and ping:
+
+```text
+https://susnata-weather-app.onrender.com/health
+```
+
+Set the interval to 5 minutes. This is still a workaround, not the same guarantee as a paid always-on server.
 
 ### Google Login Setup
 

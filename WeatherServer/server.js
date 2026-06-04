@@ -27,6 +27,17 @@ const WEATHER_HISTORY_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 const WEATHER_HISTORY_MAX_DAYS = 5;
 const URGENT_ALERT_INTERVAL_MS = 30 * 60 * 1000;
 const URGENT_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const KEEP_ALIVE_ENABLED = parseBooleanOption(
+  process.env.KEEP_ALIVE_ENABLED,
+  Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL)
+);
+const KEEP_ALIVE_INTERVAL_MS = Math.max(
+  60 * 1000,
+  Number(process.env.KEEP_ALIVE_INTERVAL_MS || 5 * 60 * 1000)
+);
+const KEEP_ALIVE_URL = normalizeKeepAliveUrl(
+  process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL || 'https://susnata-weather-app.onrender.com'
+);
 const CONTACT_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const CONTACT_RATE_LIMIT_MAX = 4;
 const DEFAULT_CORS_ORIGINS = [
@@ -53,6 +64,9 @@ let schedulerRunning = false;
 let schedulerInFlight = false;
 let lastSchedulerRunAt = null;
 let lastSchedulerRunSummary = null;
+let keepAliveTimer = null;
+let lastKeepAliveAt = null;
+let lastKeepAliveStatus = null;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -102,6 +116,11 @@ app.get('/health', (req, res) => {
     version: APP_VERSION.slice(0, 12),
     ui: UI_BUILD,
     uptime: Math.round(process.uptime()),
+    keepAliveEnabled: KEEP_ALIVE_ENABLED,
+    keepAliveIntervalMinutes: Math.round(KEEP_ALIVE_INTERVAL_MS / 60000),
+    keepAliveTarget: KEEP_ALIVE_ENABLED ? KEEP_ALIVE_URL : '',
+    lastKeepAliveAt,
+    lastKeepAliveStatus,
     timestamp: new Date().toISOString(),
   });
 });
@@ -434,6 +453,7 @@ app.listen(PORT, () => {
 });
 
 startMailScheduler();
+startKeepAlive();
 
 function parseWeatherRequest(query) {
   const rawCity = typeof query.city === 'string' ? query.city : '';
@@ -1255,6 +1275,45 @@ function startMailScheduler() {
   setTimeout(runMailScheduler, 15 * 1000).unref?.();
 }
 
+function startKeepAlive() {
+  if (!KEEP_ALIVE_ENABLED || !KEEP_ALIVE_URL || keepAliveTimer) {
+    return;
+  }
+
+  const ping = async () => {
+    try {
+      const response = await axios.get(KEEP_ALIVE_URL, {
+        timeout: 10 * 1000,
+        headers: {
+          'User-Agent': 'OxygenWeatherKeepAlive/1.0',
+        },
+        validateStatus: () => true,
+      });
+
+      lastKeepAliveAt = new Date().toISOString();
+      lastKeepAliveStatus = response.status;
+    } catch (error) {
+      lastKeepAliveAt = new Date().toISOString();
+      lastKeepAliveStatus = error.response?.status || error.code || 'failed';
+      console.warn('Keep-alive ping failed:', lastKeepAliveStatus);
+    }
+  };
+
+  keepAliveTimer = setInterval(ping, KEEP_ALIVE_INTERVAL_MS);
+  if (typeof keepAliveTimer.unref === 'function') {
+    keepAliveTimer.unref();
+  }
+
+  const firstPingTimer = setTimeout(ping, 30 * 1000);
+  if (typeof firstPingTimer.unref === 'function') {
+    firstPingTimer.unref();
+  }
+
+  console.log(
+    `Oxygen Weather keep-alive enabled: ${KEEP_ALIVE_URL} every ${Math.round(KEEP_ALIVE_INTERVAL_MS / 60000)} minutes.`
+  );
+}
+
 async function runMailScheduler({ source = 'interval' } = {}) {
   if (schedulerInFlight) {
     return {
@@ -2072,6 +2131,19 @@ function getRequestBaseUrl(req) {
   }
 
   return `${req.protocol}://${req.get('host')}`.replace(/\/$/, '');
+}
+
+function normalizeKeepAliveUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '';
+  }
+
+  if (/\/health(?:[?#].*)?$/.test(text)) {
+    return text;
+  }
+
+  return `${text.replace(/\/$/, '')}/health`;
 }
 
 function escapeHtml(value) {

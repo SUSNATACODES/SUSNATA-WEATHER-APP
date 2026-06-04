@@ -34,6 +34,12 @@ services:
         value: 465
       - key: GOOGLE_CLIENT_ID
         value: 567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
+      - key: KEEP_ALIVE_ENABLED
+        value: true
+      - key: KEEP_ALIVE_URL
+        value: https://susnata-weather-app.onrender.com/health
+      - key: KEEP_ALIVE_INTERVAL_MS
+        value: 300000
       - key: CORS_ALLOWED_ORIGINS
         value: https://oxygen-weather.blogspot.com,https://www.oxygen-weather.blogspot.com,http://127.0.0.1:5179
     autoDeploy: true
