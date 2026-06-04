@@ -1,55 +1,198 @@
-# Susnata Weather App
+# Oxygen Weather
 
-Oxygen Weather is a responsive weather dashboard built with HTML, CSS, JavaScript, Node.js, and Express. The server keeps the OpenWeather API key private, normalizes city searches, and returns current conditions, forecast data, air quality, and comfort metrics to the frontend.
+Oxygen Weather is a professional weather intelligence web app by Susnata Biswas and Susnata Codes. It combines a polished animated frontend, a secure Node.js/Express backend, OpenWeather data, Blogger publishing, Render deployment, Brevo email delivery, Google login, location detection, contact fallback, and automatic weather report logic.
 
-## Features
+The public frontend is designed to live on Blogger:
 
-- Professional responsive dashboard UI
-- Redesigned command-center interface with smart insights, hourly outlook, live clock, and weather-reactive animation
-- Cinematic animated radar hero with glass UI, stronger motion, and real-time atmosphere styling
-- JavaScript live intelligence feed, clickable hourly details, auto-refresh countdown, weather particles, and dynamic page title
-- High-refresh canvas weather background for smoother animation and reduced DOM/CSS animation load
-- Automatic local weather detection when browser location access is enabled
-- Jalpaiguri default weather when location permission has not already been granted
-- City search with normalized OpenWeather geocoding
-- Browser location weather lookup
-- Current weather, feels-like temperature, humidity, pressure, visibility, wind, sunrise, sunset, cloud cover, and precipitation
-- 5-day forecast cards
-- Air quality panel when provider data is available
-- Celsius/Fahrenheit unit switching without extra API calls
-- Recent searches stored in the browser
-- Professional remembered login/profile panel with sign-in, sign-up, 7-day session expiry, and optional Google Sign-In
-- Gmail/SMTP weather reminders with important alerts, hourly history tracking, one 12:00 AM full-day report, after-midnight outlook, test emails, and unsubscribe links
-- In-app live earthquake monitor using USGS feeds and the same dark full-screen map visual
-- Server-side caching, request timeouts, and cleaner API errors
-- Blogger XML full-code theme for publishing the app on oxygen-weather.blogspot.com
-- Render deployment support
+[oxygen-weather.blogspot.com](https://oxygen-weather.blogspot.com/)
+
+The Render service is used as the private backend API for weather, email, subscriptions, and scheduled reports:
+
+[susnata-weather-app.onrender.com](https://susnata-weather-app.onrender.com/)
+
+## Desktop Screenshot
+
+Only the desktop version is shown here.
+
+![Oxygen Weather desktop dashboard](docs/screenshots/oxygen-weather-desktop.png)
+
+## Project Highlights
+
+- Professional animated weather dashboard with glass UI, radar hero, live command feed, current conditions, metrics, forecast, air quality, and footer navigation.
+- Automatic local weather loading when the browser already has location permission.
+- Default Jalpaiguri weather when location permission is not granted yet.
+- Manual city search and "Use Location" permission button.
+- OpenWeather-powered server API with private API key protection.
+- Open-Meteo browser fallback when the Render backend is asleep or unavailable.
+- Last successful weather report saved in local storage as an emergency backup.
+- Google login UI with remembered profile and session expiry behavior.
+- Gmail-style weather reminder subscription section with important alerts, test emails, daily history reports, and unsubscribe links.
+- Contact form with Brevo email delivery and Gmail/mailto fallback when the backend is sleeping.
+- Live earthquake monitor embedded inside the weather app.
+- Blogger XML theme generator for publishing the full app on `oxygen-weather.blogspot.com`.
+- Render Free support with keep-alive configuration and external cron support.
+- Professional responsive footer linked to Oxygen Blog, Susnata Blog, and Susnata Codes.
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | HTML, CSS, JavaScript |
+| UI icons | Lucide icons |
+| Weather backend | Node.js, Express, Axios |
+| Main weather source | OpenWeather API |
+| Backup weather source | Open-Meteo public API |
+| Email delivery | Brevo HTTPS email API, optional SMTP fallback |
+| Login | Google OAuth Client ID plus local profile/session storage |
+| Hosting frontend | Blogger theme XML |
+| Hosting backend | Render web service |
+| Deployment config | `render.yaml` |
+
+## Live Architecture
+
+```text
+Visitor browser
+  |
+  | opens
+  v
+Blogger frontend at oxygen-weather.blogspot.com
+  |
+  | weather/contact/mail requests
+  v
+Render Express backend
+  |
+  | private API key
+  v
+OpenWeather API
+
+Render backend
+  |
+  | contact, confirmation, alert, daily report email
+  v
+Brevo HTTPS email API
+
+If Render is asleep:
+  Blogger frontend -> Open-Meteo backup weather
+  Blogger contact form -> Gmail or mail app draft fallback
+```
+
+## Full Working Flow
+
+1. The visitor opens `https://oxygen-weather.blogspot.com/`.
+2. Blogger loads the Oxygen Weather markup, CSS, and JavaScript from the XML theme.
+3. The app checks browser geolocation permission.
+4. If location permission is already granted, it loads the visitor's local weather automatically.
+5. If permission is not already granted, the app keeps the default Jalpaiguri weather and the "Use Location" button can request location later.
+6. For normal weather requests, the frontend calls the Render backend `/weather` endpoint.
+7. The backend keeps the OpenWeather API key private, calls OpenWeather, normalizes the response, caches it, and sends clean data to the frontend.
+8. The frontend renders the radar hero, live intelligence feed, current weather, forecast, air quality, planner, favorites, mail section, contact section, and footer.
+9. If Render is sleeping or unreachable, the frontend switches to Open-Meteo backup weather in the browser.
+10. If backup weather also fails, the app can show the last successful weather report saved in local storage.
+11. Contact messages first try Render plus Brevo email delivery.
+12. If contact email cannot reach Render, the app opens a prefilled Gmail/mail draft so the user can still send the message.
+13. Mail alerts create a backend subscription with email, location, alert preferences, daily report time, and unsubscribe token.
+14. The backend scheduler checks subscriptions, stores hourly history samples, sends urgent alerts only when important, and sends daily reports around the selected time.
+
+## Important Features
+
+### Weather Dashboard
+
+- Current temperature and condition
+- Feels-like temperature
+- Humidity, pressure, visibility, wind, cloud cover, sunrise, sunset
+- Forecast cards
+- Air quality section
+- Live local clock
+- Weather-reactive page title
+- Recent searches
+- Favorite places
+- Smart brief and command feed
+- Planner and risk cards
+
+### Automatic Location
+
+The app does not force a permission popup on first load. It checks whether the browser already has geolocation permission:
+
+- Permission already granted: load local weather automatically.
+- Permission not granted: keep default weather and let the user press "Use Location".
+- Permission denied: show a friendly message and keep city search available.
+
+### Email And Contact
+
+The recommended free email setup is Brevo because Render Free commonly blocks direct SMTP ports. The app supports:
+
+- Contact form delivery to `CONTACT_EMAIL`
+- Mail alert confirmation email
+- Send Test weather report
+- Important weather alerts
+- Daily history report
+- After-midnight outlook
+- Unsubscribe link
+- Gmail/mailto fallback for contact when Render is sleeping
+
+### Blogger Backup Mode
+
+Blogger itself does not sleep. The static frontend stays available. Render can sleep on the free plan, so the app includes backup behavior:
+
+- Weather tries Render/OpenWeather first.
+- Weather falls back to Open-Meteo in the browser.
+- Last successful weather data can be reused from local storage.
+- Contact falls back to a Gmail/mail draft.
+
+Render is still required for secure server features such as Brevo API keys, saved mail subscriptions, automatic reports, and urgent alert scheduling.
+
+## How I Made It
+
+1. Built the frontend shell in `public/index.html` with a dashboard structure, header actions, search, command buttons, weather panels, mail alerts, contact, and footer.
+2. Designed the visual system in `public/style.css` with glass panels, radar animation, weather effects, responsive layouts, desktop polish, and phone fixes.
+3. Added frontend behavior in `public/script.js` for city search, location detection, unit switching, login state, favorite places, recent searches, contact fallback, mail alerts, and weather rendering.
+4. Built the backend in `WeatherServer/server.js` using Express, Axios, caching, CORS protection, contact rate limiting, OpenWeather requests, mail delivery, scheduler logic, and keep-alive.
+5. Added Brevo email API support because it works on Render Free through HTTPS.
+6. Added Open-Meteo backup weather so Blogger can still show weather when Render is asleep.
+7. Added Google OAuth configuration for a professional account chooser login flow.
+8. Added `scripts/generate-blogger-theme.js` to convert the app into a Blogger-compatible XML theme.
+9. Published the generated XML to Blogger so `oxygen-weather.blogspot.com` becomes the main frontend.
+10. Kept Render as the backend API only, with `PUBLIC_APP_URL` pointing visitors back to Blogger.
+11. Captured the desktop screenshot in `docs/screenshots/oxygen-weather-desktop.png`.
+12. Wrote this README and the slide-style presentation in [docs/presentation.md](docs/presentation.md).
+
+## Project Presentation
+
+Use [docs/presentation.md](docs/presentation.md) as a full presentation script. Short version:
+
+1. Title: Oxygen Weather by Susnata Codes.
+2. Problem: ordinary weather apps look basic, depend too much on one server, and do not help users with important alerts.
+3. Solution: Blogger frontend plus Render backend, weather backup, email reports, Google login, and professional dashboard UI.
+4. User flow: open site, search city or use location, view weather intelligence, subscribe to alerts, contact support.
+5. Technical flow: Blogger frontend calls Render, Render calls OpenWeather and Brevo, browser falls back to Open-Meteo.
+6. Reliability: Blogger stays online, Render has keep-alive support, and contact has Gmail draft fallback.
+7. Result: a full weather product, not just a simple weather card.
 
 ## Local Setup
 
-1. Clone the repository.
-2. Install server dependencies:
+Clone the repository:
+
+```bash
+git clone https://github.com/SUSNATACODES/SUSNATA-WEATHER-APP.git
+cd SUSNATA-WEATHER-APP
+```
+
+Install backend dependencies:
 
 ```bash
 cd WeatherServer
 npm install
 ```
 
-3. Create a `.env` file from the example:
-
-```bash
-cp .env.example .env
-```
-
-4. Add your OpenWeather API key:
+Create `WeatherServer/.env`:
 
 ```env
-API_KEY=your_openweather_api_key_here
+API_KEY=your_openweather_api_key
 PORT=3000
 PUBLIC_APP_URL=http://localhost:3000
 ```
 
-Optional free email delivery for contact and mail alerts:
+Optional Brevo email setup:
 
 ```env
 BREVO_API_KEY=your_brevo_api_key
@@ -58,178 +201,168 @@ BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=your_contact_destination@gmail.com
 ```
 
-Render Free blocks outbound SMTP ports, so Gmail SMTP is not reliable on the free plan.
-Use Brevo's HTTPS email API for free delivery. The contact form sends to `CONTACT_EMAIL`.
-For exact midnight delivery, use an always-on Render service or an external uptime/cron ping; free sleeping services can only run the scheduler while the server is awake.
-
-Optional Google Sign-In:
+Optional Google login:
 
 ```env
-GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
-Create a Google OAuth web client and add the Blogger site plus local test URL as authorized origins before enabling this.
-
-5. Start the server:
+Start the server:
 
 ```bash
 npm start
 ```
 
-6. Open `http://localhost:3000`.
+Open:
+
+```text
+http://localhost:3000
+```
 
 ## Render Deployment
 
-The repository includes `render.yaml`. In Render, keep `rootDir` set to `WeatherServer`, then add the environment variables:
+The project includes `render.yaml`. Render should use:
+
+```text
+rootDir: WeatherServer
+buildCommand: npm install
+startCommand: npm start
+```
+
+Recommended Render environment variables:
 
 ```env
-API_KEY=your_openweather_api_key_here
+API_KEY=your_openweather_api_key
 PUBLIC_APP_URL=https://oxygen-weather.blogspot.com
 BREVO_API_KEY=your_brevo_api_key
 BREVO_SENDER_EMAIL=verified_sender_email@gmail.com
 BREVO_SENDER_NAME=Oxygen Weather
 CONTACT_EMAIL=your_contact_destination@gmail.com
 MAIL_CRON_SECRET=optional_private_scheduler_secret
-GOOGLE_CLIENT_ID=567409969604-qr980ja0p5l2b52huv7kgelgncnndkuf.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 KEEP_ALIVE_ENABLED=true
 KEEP_ALIVE_URL=https://susnata-weather-app.onrender.com/health
 KEEP_ALIVE_INTERVAL_MS=300000
+CORS_ALLOWED_ORIGINS=https://oxygen-weather.blogspot.com,https://www.oxygen-weather.blogspot.com,http://127.0.0.1:5179
 ```
 
-Render will run:
-
-```bash
-npm install
-npm start
-```
-
-### Render Sleep / Keep-Alive
-
-Blogger does not sleep, but Render Free web services can spin down when they are idle. A paid Render instance is the only guaranteed always-awake Render option.
-
-This backend includes a free keep-alive loop:
-
-```env
-KEEP_ALIVE_ENABLED=true
-KEEP_ALIVE_URL=https://susnata-weather-app.onrender.com/health
-KEEP_ALIVE_INTERVAL_MS=300000
-```
-
-It pings `/health` about every 5 minutes while the service is running. `/health` shows `keepAliveEnabled`, `lastKeepAliveAt`, and `lastKeepAliveStatus`.
-
-For the strongest free workaround, also create an external uptime monitor such as UptimeRobot or cron-job.org and ping:
+Health check:
 
 ```text
 https://susnata-weather-app.onrender.com/health
 ```
 
-Set the interval to 5 minutes. This is still a workaround, not the same guarantee as a paid always-on server.
-
-### Blogger Backup Mode
-
-The Blogger/static frontend is not fully dependent on Render:
-
-- Weather loads from Render/OpenWeather first.
-- If Render is asleep, slow, or unavailable, the browser falls back to Open-Meteo directly with no API key.
-- If both live sources fail, the browser can show the last successful weather report saved in local storage.
-- Contact messages send through Render/Brevo first.
-- If Render mail is asleep or unreachable, the contact form opens a prefilled Gmail/mail draft to the configured contact email.
-
-Render is still required for secure server features:
-
-- Brevo API secret delivery
-- Saved mail subscriptions
-- Emergency alert scheduling
-- 12:00 AM daily report jobs
-
-### Google Login Setup
-
-Google login uses the public OAuth Client ID already embedded in the Blogger/static app. Render can also expose the same value from `/auth/config` with `GOOGLE_CLIENT_ID`.
-The Google OAuth **Web application** client must include these authorized JavaScript origins:
+Mail status check:
 
 ```text
-https://oxygen-weather.blogspot.com
-http://127.0.0.1:5179
+https://susnata-weather-app.onrender.com/mail-alerts/status
 ```
-
-Also add these authorized redirect URIs:
-
-```text
-https://oxygen-weather.blogspot.com/
-http://127.0.0.1:5179/
-```
-
-After the Blogger XML is published, reload the website. The Google button will open the full `accounts.google.com` account chooser and return to Oxygen Weather after login.
-
-### Free Contact And Report Email Setup
-
-Contact form email, Send Test, important alerts, and 12:00 AM reports all use the same email sender. On Render Free, use Brevo's HTTPS API because SMTP ports are blocked.
-
-Create a Brevo account, verify a sender email, create an SMTP/API key, then add:
-
-```env
-BREVO_API_KEY=your_brevo_api_key
-BREVO_SENDER_EMAIL=verified_sender_email@gmail.com
-BREVO_SENDER_NAME=Oxygen Weather
-CONTACT_EMAIL=where_contact_messages_should_arrive@gmail.com
-```
-
-Gmail SMTP variables are still supported as a fallback for paid/non-blocked hosts, but they are not the recommended free Render setup.
-
-### Midnight Report Reliability
-
-The server has a scheduler, but Render free services can sleep. For more reliable 12:00 AM delivery, create an external cron/uptime job that calls:
-
-```text
-https://susnata-weather-app.onrender.com/mail-alerts/cron
-```
-
-If `MAIL_CRON_SECRET` is set, call:
-
-```text
-https://susnata-weather-app.onrender.com/mail-alerts/cron?secret=YOUR_SECRET
-```
-
-Ping it every 10-15 minutes. The backend only sends due reports/alerts, so repeated pings should not spam users.
 
 ## Blogger Deployment
 
-Use `blogger/oxygen-weather-blogger-theme.xml` for oxygen-weather.blogspot.com.
-
-1. In Blogger, open Theme.
-2. Back up the current theme.
-3. Open Edit HTML.
-4. Replace the current XML with `blogger/oxygen-weather-blogger-theme.xml`.
-5. Save/publish the theme.
-
-The Blogger XML contains the Oxygen Weather markup, CSS, and JavaScript directly inside the Blogger theme. It still calls the Render backend for private server work such as OpenWeather requests, Gmail reminders, Google config, and alert scheduling.
-The public home is `https://oxygen-weather.blogspot.com/`. Render remains only the backend API host, and direct visits to the Render root redirect to the Blogger home when `PUBLIC_APP_URL` is configured.
-
-If the main app UI changes, regenerate the Blogger XML with:
+Generate the Blogger XML:
 
 ```bash
 node scripts/generate-blogger-theme.js
 ```
 
-## Project Structure
+The output file is:
+
+```text
+blogger/oxygen-weather-blogger-theme.xml
+```
+
+Publish it:
+
+1. Open Blogger.
+2. Go to Theme.
+3. Back up the current theme.
+4. Open Edit HTML.
+5. Replace the theme XML with `blogger/oxygen-weather-blogger-theme.xml`.
+6. Save.
+7. Open `https://oxygen-weather.blogspot.com/`.
+
+## Google Login Setup
+
+Create a Google OAuth Web application client in Google Cloud.
+
+Authorized JavaScript origins:
+
+```text
+https://oxygen-weather.blogspot.com
+http://127.0.0.1:5179
+http://localhost:3000
+```
+
+Authorized redirect URIs:
+
+```text
+https://oxygen-weather.blogspot.com/
+http://127.0.0.1:5179/
+http://localhost:3000/
+```
+
+Add the OAuth client ID to Render as `GOOGLE_CLIENT_ID` and to the static config if needed.
+
+## Midnight Reports And Cron
+
+Render Free can sleep, so midnight reports are strongest when an external cron service calls the backend regularly.
+
+Cron endpoint:
+
+```text
+https://susnata-weather-app.onrender.com/mail-alerts/cron
+```
+
+With a secret:
+
+```text
+https://susnata-weather-app.onrender.com/mail-alerts/cron?secret=YOUR_SECRET
+```
+
+Recommended interval:
+
+```text
+Every 10 to 15 minutes
+```
+
+The backend only sends reports or urgent alerts when they are due, so repeated cron pings should not spam subscribers.
+
+## Repository Structure
 
 ```text
 SUSNATA-WEATHER-APP/
   blogger/
     oxygen-weather-blogger-theme.xml
-  WeatherServer/
-    server.js
-    package.json
-    package-lock.json
-    .env.example
+  docs/
+    presentation.md
+    screenshots/
+      oxygen-weather-desktop.png
   public/
     index.html
     script.js
     style.css
+  scripts/
+    generate-blogger-theme.js
+  WeatherServer/
+    server.js
+    package.json
+    package-lock.json
+    data/
   render.yaml
   README.md
 ```
 
+## Security Notes
+
+- Do not commit real API keys, Gmail app passwords, Brevo API keys, or OAuth secrets.
+- Keep OpenWeather and Brevo secrets only in Render environment variables.
+- Use Brevo HTTPS email delivery on Render Free.
+- Use `MAIL_CRON_SECRET` if the cron endpoint is public.
+- If any password was ever posted publicly, revoke it and create a new one.
+
 ## Author
 
 Developed by Susnata Biswas.
+
+Project brand: Susnata Codes.
